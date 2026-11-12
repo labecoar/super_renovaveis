@@ -1,0 +1,177 @@
+:root {
+  --bg-top: #9ecfe8;
+  --bg-bot: #e8f4ef;
+  --ink: #1c2240;
+  --sun: #c98a00;
+  --bezel: #1c2240;
+  --line: #cfdae1;
+  box-sizing: border-box;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-top: #10152a;
+    --bg-bot: #1a2240;
+    --ink: #e7ebf5;
+    --sun: #ffcc3d;
+    --bezel: #05070f;
+    --line: #2b3557;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: inherit;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100%;
+  padding: env(safe-area-inset-top, 0) 16px env(safe-area-inset-bottom, 0);
+  color: var(--ink);
+  font-family: "Pixelify Sans", ui-monospace, monospace;
+  background: linear-gradient(180deg, var(--bg-top) 0%, var(--bg-bot) 100%);
+  overflow: hidden;
+}
+
+.stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  width: auto;
+  max-width: 100%;
+}
+
+.brand {
+  margin: 0;
+  font-size: clamp(1.2rem, 4vw, 2rem);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  text-align: center;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.brand span {
+  color: var(--sun);
+}
+
+.bezel {
+  width: fit-content;
+  max-width: 100%;
+  padding: 10px;
+  background: var(--bezel);
+  box-shadow:
+    0 0 0 2px var(--line),
+    8px 8px 0 0 var(--line);
+}
+
+canvas {
+  display: block;
+  /* tamanho CSS vem do JS (ocupa o espaço livre, proporção 16:9) */
+  width: 640px;
+  height: 360px;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  -ms-interpolation-mode: nearest-neighbor;
+  background: #8fd3f4;
+}
+
+.touch {
+  display: none;
+  width: 100%;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.touch .dpad {
+  display: flex;
+  gap: 12px;
+}
+
+.touch button {
+  width: 64px;
+  height: 64px;
+  padding: 0;
+  font: inherit;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--ink);
+  background: var(--bg-bot);
+  border: 3px solid var(--bezel);
+  box-shadow: 4px 4px 0 0 var(--line);
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.touch button.jump {
+  width: 96px;
+  font-size: 1rem;
+  color: #1c2240;
+  background: #ffcc3d;
+}
+
+.touch button.mute {
+  width: 56px;
+  height: 40px;
+  font-size: 0.8rem;
+}
+
+.touch button.mute.off {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
+.touch button.on {
+  transform: translate(3px, 3px);
+  box-shadow: 1px 1px 0 0 var(--line);
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .touch {
+    display: flex;
+  }
+
+  .hint {
+    display: none;
+  }
+
+  .stage {
+    gap: 10px;
+  }
+
+  canvas {
+    touch-action: none;
+  }
+}
+
+/* celular deitado: título some pra sobrar altura */
+@media (hover: none) and (pointer: coarse) and (max-height: 500px) {
+  .brand {
+    display: none;
+  }
+}
+
+.hint {
+  margin: 0;
+  max-width: 40rem;
+  font-size: clamp(0.75rem, 2vw, 0.95rem);
+  line-height: 1.45;
+  text-align: center;
+  opacity: 0.85;
+}

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>As Super Renováveis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/src/style.css">
+</head>
+<body>
+  <main class="stage">
+    <h1 class="brand">As Super <span>Renováveis</span></h1>
+    <div class="bezel">
+      <canvas id="c" width="640" height="360" aria-label="As Super Renováveis"></canvas>
+    </div>
+    <div class="touch">
+      <div class="dpad">
+        <button type="button" data-key="arrowleft" aria-label="Andar para a esquerda">◀</button>
+        <button type="button" data-key="arrowright" aria-label="Andar para a direita">▶</button>
+      </div>
+      <button type="button" class="mute" aria-label="Ligar ou desligar o som">SOM</button>
+      <button type="button" class="jump" data-key="jump" aria-label="Pular">PULAR</button>
+    </div>
+    <p class="hint">← → andar · Espaço / ↑ pular · M som · Guarde o sol de hoje para a noite</p>
+  </main>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
