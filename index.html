@@ -11,19 +11,40 @@
 </head>
 <body>
   <main class="stage">
-    <h1 class="brand">As Super <span>Renováveis</span></h1>
+    <div class="topbar">
+      <h1 class="brand">As Super <span>Renováveis</span></h1>
+      <button type="button" class="gear" aria-label="Configurações" aria-expanded="false" aria-controls="settings">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+          <path fill="currentColor" d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.2 7.2 0 0 0-1.63-.94l-.36-2.54a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54c-.59.22-1.13.54-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.71 8.84a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32c.13.22.4.31.6.22l2.39-.96c.5.4 1.04.72 1.63.94l.36 2.54c.05.24.26.42.5.42h3.84c.24 0 .45-.18.5-.42l.36-2.54c.59-.22 1.13-.54 1.63-.94l2.39.96c.22.09.47 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58zM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7z"/>
+        </svg>
+      </button>
+    </div>
+    <div class="settings" id="settings" hidden>
+      <p class="settings-title">Configurações</p>
+      <div class="settings-row">
+        <span>Som</span>
+        <button type="button" class="sound" aria-pressed="true">Ligado</button>
+      </div>
+      <p class="settings-note">Atalho: tecla M</p>
+      <button type="button" class="settings-close">Fechar</button>
+    </div>
     <div class="bezel">
       <canvas id="c" width="640" height="360" aria-label="As Super Renováveis"></canvas>
+    </div>
+    <div class="film" hidden>
+      <button type="button" class="film-btn" id="film-prev">◀ Anterior</button>
+      <button type="button" class="film-btn is-pause" id="film-pause" aria-pressed="false">❚❚ Pausar</button>
+      <button type="button" class="film-btn" id="film-next">Próximo ▶</button>
+      <button type="button" class="film-btn" id="film-restart">↺ Recomeçar</button>
     </div>
     <div class="touch">
       <div class="dpad">
         <button type="button" data-key="arrowleft" aria-label="Andar para a esquerda">◀</button>
         <button type="button" data-key="arrowright" aria-label="Andar para a direita">▶</button>
       </div>
-      <button type="button" class="mute" aria-label="Ligar ou desligar o som">SOM</button>
       <button type="button" class="jump" data-key="jump" aria-label="Pular">PULAR</button>
     </div>
-    <p class="hint">← → andar · Espaço / ↑ pular · M som · Guarde o sol de hoje para a noite</p>
+    <p class="hint">← → andar · Espaço / ↑ pular · engrenagem: configurações</p>
   </main>
   <script type="module" src="/src/main.js"></script>
 </body>

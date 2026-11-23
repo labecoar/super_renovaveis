@@ -277,7 +277,36 @@ export const SPR = {
   blade: {
     f1: [".K.", "KWK", "KWK", "KWK", "KWK", "KWK", "KWK", "KWK", "KWK", "KWK", ".K.", "..."],
   },
+  /** 11×11, 8 frames: meia volta fecha o ciclo (pás azul/branco). */
+  pin: [
+    [".....K.....", "....KWK....", "...KKWWK...", "..KCKWWWK..", ".KCCCWWKKK.", "KCCCCYCCCCK", ".KKKWWCCCK.", "..KWWWKCK..", "...KWWKK...", "....KWK....", ".....K....."],
+    ["...........", ".......K...", "..KKK.KWK..", ".KCCCKWWK..", "..KCCKWWK..", "...KKYKK...", "..KWWKCCK..", "..KWWKCCCK.", "..KWK.KKK..", "...K.......", "..........."],
+    ["...........", "...KK......", "..KCCK.KK..", "..KCCCKWWK.", "...KCCWWWK.", "..KWWYWWK..", ".KWWWCCK...", ".KWWKCCCK..", "..KK.KCCK..", "......KK...", "..........."],
+    ["...........", "....KK.....", "...KCCK....", "...KKCCKK..", "..KWKCKKWK.", ".KWWWYWWWK.", ".KWKKCKWK..", "..KKCCKK...", "....KCCK...", ".....KK....", "..........."],
+    [".....K.....", "....KCK....", "...KKCCK...", "..KWKCCCK..", ".KWWWCCKKK.", "KWWWWYWWWWK", ".KKKCCWWWK.", "..KCCCKWK..", "...KCCKK...", "....KCK....", ".....K....."],
+    ["...........", ".......K...", "..KKK.KCK..", ".KWWWKCCK..", "..KWWKCCK..", "...KKYKK...", "..KCCKWWK..", "..KCCKWWWK.", "..KCK.KKK..", "...K.......", "..........."],
+    ["...........", "...KK......", "..KWWK.KK..", "..KWWWKCCK.", "...KWWCCCK.", "..KCCYCCK..", ".KCCCWWK...", ".KCCKWWWK..", "..KK.KWWK..", "......KK...", "..........."],
+    ["...........", "....KK.....", "...KWWK....", "...KKWWKK..", "..KCKWKKCK.", ".KCCCYCCCK.", ".KCKKWKCK..", "..KKWWKK...", "....KWWK...", ".....KK....", "..........."],
+  ],
+  /** 24×10 — contratos em cima; plataforma. */
+  mesa: [
+    "......KKKKKK..KKKKK.....",
+    "......KWWWWK..KWWRK.....",
+    "......KWKKWK..KWWWK.....",
+    "KKKKKKKKKKKKKKKKKKKKKKKK",
+    "KDDDDDDDDDDDDDDDDDDDDDDK",
+    "KddddddddddddddddddddddK",
+    "KKKKKKKKKKKKKKKKKKKKKKKK",
+    "..KdK..............KdK..",
+    "..KdK..............KdK..",
+    "..KKK..............KKK..",
+  ],
+  alerta: [".KKK.", "KRRRK", "KRRRK", "KRRRK", ".KRK.", ".KRK.", "..K..", ".KKK.", ".KRK.", ".KKK."],
+  toco: [".KKK.", "KdDdK", "KDdDK", "KdDdK", ".KKK."],
+  muda: ["..K..", ".KEK.", "KEeEK", ".KeK.", "..D.."],
 };
+
+export const PIN_GRAY = { C: "#8a93a8", W: "#c3c9d6", Y: "#9aa0b0", c: "#6f788c" };
 
 // derivados
 SPR.hero.tired = SPR.hero.idle.map((r) =>
@@ -299,14 +328,15 @@ export function gridSize(grid) {
 }
 
 /** Desenha grade (1 letra = 1 px) na posição world; cam desloca X. scale = pixels por célula. */
-export function drawSprite(ctx, grid, x, y, cam = 0, flipX = false, scale = 1) {
+export function drawSprite(ctx, grid, x, y, cam = 0, flipX = false, scale = 1, colorMap = null) {
   if (!grid) return;
   const { w } = gridSize(grid);
   const s = scale | 0 || 1;
   for (let r = 0; r < grid.length; r++) {
     const row = grid[r];
     for (let c = 0; c < row.length; c++) {
-      const hex = PAL[row[c]];
+      const ch = row[c];
+      const hex = (colorMap && colorMap[ch]) || PAL[ch];
       if (!hex) continue;
       const col = flipX ? w - 1 - c : c;
       const px = x + col * s - cam;
@@ -314,6 +344,11 @@ export function drawSprite(ctx, grid, x, y, cam = 0, flipX = false, scale = 1) {
       ctx.fillRect(Math.round(px), Math.round(y + r * s), s, s);
     }
   }
+}
+
+export function drawPin(ctx, frame, x, y, cam = 0, flipX = false, gray = false) {
+  const g = SPR.pin[Math.abs(frame | 0) % SPR.pin.length];
+  drawSprite(ctx, g, x, y, cam, flipX, 1, gray ? PIN_GRAY : null);
 }
 
 export function drawTurbine(ctx, x, y, angle, cam) {
