@@ -12,24 +12,44 @@ let muted = localStorage.getItem("sr-muted") === "1";
 
 const midi = (n) => 440 * Math.pow(2, (n - 69) / 12);
 
-export function initAudio() {
-  if (ac) {
-    if (ac.state === "suspended") ac.resume();
-    return;
+function pump() {
+  if (ac?.state === "running") schedule();
+}
+
+/** Safari cria o contexto suspenso e só solta o som se o resume
+ *  acontecer no mesmo clique que criou o AudioContext. */
+function unlock() {
+  if (!ac) return;
+  if (ac.state !== "running") ac.resume()?.then(pump).catch(() => {});
+  try {
+    const buf = ac.createBuffer(1, 1, ac.sampleRate);
+    const src = ac.createBufferSource();
+    src.buffer = buf;
+    src.connect(master);
+    src.start(0);
+  } catch {
+    /* o resume acima já cobre o caso em que o buffer falha */
   }
-  const AC = window.AudioContext || window.webkitAudioContext;
-  if (!AC) return;
-  ac = new AC();
-  master = ac.createGain();
-  master.gain.value = muted ? 0 : 0.5;
-  master.connect(ac.destination);
-  musicBus = ac.createGain();
-  musicBus.gain.value = 0.32;
-  musicBus.connect(master);
-  sfxBus = ac.createGain();
-  sfxBus.gain.value = 0.7;
-  sfxBus.connect(master);
-  setInterval(schedule, 25);
+  pump();
+}
+
+export function initAudio() {
+  if (!ac) {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    ac = new AC();
+    master = ac.createGain();
+    master.gain.value = muted ? 0 : 0.5;
+    master.connect(ac.destination);
+    musicBus = ac.createGain();
+    musicBus.gain.value = 0.32;
+    musicBus.connect(master);
+    sfxBus = ac.createGain();
+    sfxBus.gain.value = 0.7;
+    sfxBus.connect(master);
+    setInterval(schedule, 25);
+  }
+  unlock();
 }
 
 export function toggleMute() {

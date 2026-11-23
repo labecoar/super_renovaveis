@@ -895,17 +895,17 @@ function closeSettings() {
 if (gearBtn && settingsPanel && soundBtn) {
   syncSoundButton();
   gearBtn.addEventListener("pointerdown", (e) => {
+    initAudio();
     e.preventDefault();
     e.stopPropagation();
-    initAudio();
     if (settingsOpen) closeSettings();
     else openSettings();
   });
   settingsPanel.addEventListener("pointerdown", (e) => e.stopPropagation());
   soundBtn.addEventListener("pointerdown", (e) => {
+    initAudio();
     e.preventDefault();
     e.stopPropagation();
-    initAudio();
     toggleMute();
     syncSoundButton();
   });
@@ -929,9 +929,9 @@ function syncFilm() {
 
 function bindFilm(btn, fn) {
   btn?.addEventListener("pointerdown", (e) => {
+    initAudio();
     e.preventDefault();
     e.stopPropagation();
-    initAudio();
     fn();
     syncFilm();
   });
@@ -945,11 +945,11 @@ bindFilm(filmPause, () => {
 });
 
 addEventListener("pointerdown", () => {
+  initAudio();
   if (settingsOpen) {
     closeSettings();
     return;
   }
-  initAudio();
   if (state === "opening") {
     advanceOpening();
     return;
