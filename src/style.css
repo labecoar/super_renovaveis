@@ -28,6 +28,7 @@
 html,
 body {
   height: 100%;
+  height: 100dvh;
   margin: 0;
 }
 
@@ -36,7 +37,12 @@ body {
   align-items: center;
   justify-content: center;
   min-height: 100%;
-  padding: env(safe-area-inset-top, 0) 16px env(safe-area-inset-bottom, 0);
+  min-height: 100dvh;
+  padding:
+    max(8px, env(safe-area-inset-top, 0))
+    max(8px, env(safe-area-inset-right, 0))
+    max(8px, env(safe-area-inset-bottom, 0))
+    max(8px, env(safe-area-inset-left, 0));
   color: var(--ink);
   font-family: "Pixelify Sans", ui-monospace, monospace;
   background: linear-gradient(180deg, var(--bg-top) 0%, var(--bg-bot) 100%);
@@ -49,7 +55,7 @@ body {
   flex-direction: column;
   align-items: center;
   gap: 14px;
-  width: auto;
+  width: 100%;
   max-width: 100%;
 }
 
@@ -176,6 +182,10 @@ body {
 }
 
 .film-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4em;
   padding: 6px 12px;
   font: inherit;
   font-weight: 700;
@@ -206,13 +216,16 @@ body {
   box-shadow:
     0 0 0 2px var(--line),
     8px 8px 0 0 var(--line);
+  overflow: hidden;
 }
 
 canvas {
   display: block;
   /* tamanho CSS vem do JS (ocupa o espaço livre, proporção 16:9) */
-  width: 640px;
-  height: 360px;
+  width: min(100%, 640px);
+  height: auto;
+  aspect-ratio: 16 / 9;
+  max-width: 100%;
   image-rendering: -moz-crisp-edges;
   image-rendering: -webkit-optimize-contrast;
   image-rendering: pixelated;
@@ -269,12 +282,60 @@ canvas {
     display: flex;
   }
 
+  /* na abertura só os botões do filme; toque some pra não empilhar */
+  body.is-opening .touch {
+    display: none;
+  }
+
   .hint {
     display: none;
   }
 
   .stage {
-    gap: 10px;
+    gap: 8px;
+  }
+
+  .bezel {
+    padding: 6px;
+    box-shadow:
+      0 0 0 2px var(--line),
+      4px 4px 0 0 var(--line);
+  }
+
+  .film {
+    flex-wrap: nowrap;
+    gap: 8px;
+    width: auto;
+    max-width: 100%;
+  }
+
+  .film-btn {
+    flex: 0 0 auto;
+    min-width: 48px;
+    min-height: 48px;
+    padding: 10px 12px;
+    font-size: 1.15rem;
+  }
+
+  .film-btn .film-txt {
+    display: none;
+  }
+
+  .touch {
+    width: 100%;
+    max-width: 420px;
+    gap: 12px;
+  }
+
+  .touch button {
+    width: 56px;
+    height: 56px;
+    font-size: 1.2rem;
+  }
+
+  .touch button.jump {
+    width: 88px;
+    font-size: 0.9rem;
   }
 
   canvas {
@@ -282,8 +343,16 @@ canvas {
   }
 }
 
-/* celular deitado: título some pra sobrar altura */
+/* celular deitado: controles pequenos embaixo, sem cobrir o canvas */
 @media (hover: none) and (pointer: coarse) and (max-height: 500px) {
+  body {
+    padding:
+      max(4px, env(safe-area-inset-top, 0))
+      max(4px, env(safe-area-inset-right, 0))
+      max(4px, env(safe-area-inset-bottom, 0))
+      max(4px, env(safe-area-inset-left, 0));
+  }
+
   .brand {
     display: none;
   }
@@ -294,10 +363,64 @@ canvas {
     right: 0;
     z-index: 6;
     width: auto;
+    padding: 4px;
   }
 
   .gear {
     grid-column: 1;
+    width: 32px;
+    height: 32px;
+  }
+
+  .stage {
+    gap: 4px;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .bezel {
+    padding: 3px;
+  }
+
+  .film {
+    position: static;
+    gap: 4px;
+    transform: none;
+  }
+
+  .film-btn {
+    min-width: 36px;
+    min-height: 36px;
+    padding: 4px 8px;
+    font-size: 0.85rem;
+    box-shadow: 2px 2px 0 0 var(--line);
+  }
+
+  .touch {
+    position: static;
+    width: min(100%, 360px);
+    max-width: none;
+    gap: 8px;
+    padding: 0;
+    pointer-events: auto;
+  }
+
+  .touch button {
+    width: 40px;
+    height: 40px;
+    font-size: 1rem;
+    box-shadow: 2px 2px 0 0 var(--line);
+    background: var(--bg-bot);
+  }
+
+  .touch button.jump {
+    width: 64px;
+    font-size: 0.75rem;
+    color: #1c2240;
+  }
+
+  .touch button.jump::before {
+    content: none;
   }
 }
 

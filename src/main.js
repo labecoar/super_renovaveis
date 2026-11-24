@@ -161,27 +161,61 @@ const ctx = cv.getContext("2d");
 let viewScale = SCALE;
 
 /**
- * Escala inteira + Retina:
- * - CSS ocupa o espaço livre da janela (pode ser fracionário)
- * - buffer do canvas × DPR pra 1 pixel lógico = N pixels físicos (nearest, sem blur)
+ * Escala + Retina:
+ * - mede a chrome real (título, film, toque) em vez de chute fixo
+ * - buffer do canvas × DPR pra 1 pixel lógico = N pixels físicos
  */
+function chromeH(el) {
+  if (!el || el.hidden || getComputedStyle(el).display === "none") return 0;
+  return el.getBoundingClientRect().height;
+}
+
 function fitIntegerScale() {
   const dpr = Math.max(1, Math.round(window.devicePixelRatio) || 1);
   const touch = matchMedia("(hover: none) and (pointer: coarse)").matches;
-  const padX = touch ? 24 : 72;
-  const padY = !touch ? 168 : window.innerHeight <= 500 ? 148 : 236;
+  const stage = document.querySelector(".stage");
+  const bezel = document.querySelector(".bezel");
+  const film = document.querySelector(".film");
+  const touchBar = document.querySelector(".touch");
+  const topbar = document.querySelector(".topbar");
+  const hint = document.querySelector(".hint");
+  const vv = window.visualViewport;
+  const viewW = vv?.width || window.innerWidth;
+  const viewH = vv?.height || window.innerHeight;
+  const stageW = stage ? stage.clientWidth : viewW;
+  const bezelPad = bezel
+    ? (parseFloat(getComputedStyle(bezel).paddingLeft) || 0) * 2 + 4
+    : touch
+      ? 24
+      : 28;
+  const gap = touch ? 6 : 14;
+  // body.is-opening / film visível — evita pegar `state` antes do init
+  const opening = document.body.classList.contains("is-opening") || (film && !film.hidden);
+  const topbarFlow =
+    topbar && getComputedStyle(topbar).position !== "absolute" ? chromeH(topbar) : 0;
+  // controles ficam embaixo do canvas (nunca por cima das falas)
+  const extras =
+    topbarFlow +
+    (opening ? chromeH(film) || (touch ? 40 : 0) : 0) +
+    (!opening ? chromeH(touchBar) : 0) +
+    chromeH(hint) +
+    gap * (opening || touch ? 2 : 3) +
+    (touch ? 4 : 24);
+  const availW = Math.max(160, Math.min(stageW, viewW) - bezelPad);
+  const availH = Math.max(90, viewH - extras - bezelPad);
   const baseW = VW * SCALE;
   const baseH = VH * SCALE;
-  const ratio = Math.min((window.innerWidth - padX) / baseW, (window.innerHeight - padY) / baseH);
-  // meio-termo: ~80% do espaço livre (nunca menor que 640×360 se couber)
-  const fit = Math.max(0.3, Math.min(ratio, 1), ratio * 0.8);
+  const ratio = Math.min(availW / baseW, availH / baseH);
+  // PC: ~80% do espaço livre, podendo passar de 640×360. Celular: preenche o que sobrou.
+  const fit = touch
+    ? Math.max(0.25, Math.min(ratio, 1.35))
+    : Math.max(0.3, Math.min(ratio, 1), ratio * 0.8);
 
-  // buffer sempre em múltiplo inteiro (sem frestas entre tiles), arredondado pra cima
-  // e o CSS reduz um pouco — fica nítido em vez de borrado
   const k = Math.max(1, Math.ceil(fit * dpr));
-
-  cv.style.width = `${Math.round(baseW * fit)}px`;
-  cv.style.height = `${Math.round(baseH * fit)}px`;
+  const cssW = Math.floor(baseW * fit);
+  const cssH = Math.floor(baseH * fit);
+  cv.style.width = `${cssW}px`;
+  cv.style.height = `${cssH}px`;
   cv.width = baseW * k;
   cv.height = baseH * k;
   viewScale = SCALE * k;
@@ -189,6 +223,8 @@ function fitIntegerScale() {
 }
 fitIntegerScale();
 addEventListener("resize", fitIntegerScale);
+addEventListener("orientationchange", () => setTimeout(fitIntegerScale, 80));
+visualViewport?.addEventListener("resize", fitIntegerScale);
 
 /* ===== mapa ===== */
 const solid = Array.from({ length: 12 }, () => Array(MAP_W).fill(0));
@@ -921,10 +957,19 @@ const filmPause = document.getElementById("film-pause");
 
 function syncFilm() {
   if (!filmBar) return;
-  filmBar.hidden = state !== "opening";
+  const opening = state === "opening";
+  const wasHidden = filmBar.hidden;
+  filmBar.hidden = !opening;
+  document.body.classList.toggle("is-opening", opening);
+  document.body.classList.toggle("is-touch", matchMedia("(hover: none) and (pointer: coarse)").matches);
   if (!filmPause) return;
-  filmPause.textContent = openPlaying ? "❚❚ Pausar" : "▶ Continuar";
+  const pauseIco = filmPause.querySelector(".film-ico");
+  const pauseTxt = filmPause.querySelector(".film-txt");
+  if (pauseIco) pauseIco.textContent = openPlaying ? "❚❚" : "▶";
+  if (pauseTxt) pauseTxt.textContent = openPlaying ? "Pausar" : "Continuar";
+  filmPause.setAttribute("aria-label", openPlaying ? "Pausar" : "Continuar");
   filmPause.setAttribute("aria-pressed", String(!openPlaying));
+  if (wasHidden !== filmBar.hidden) fitIntegerScale();
 }
 
 function bindFilm(btn, fn) {
@@ -943,6 +988,8 @@ bindFilm(document.getElementById("film-restart"), restartOpening);
 bindFilm(filmPause, () => {
   openPlaying = !openPlaying;
 });
+syncFilm();
+fitIntegerScale();
 
 addEventListener("pointerdown", () => {
   initAudio();

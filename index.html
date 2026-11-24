@@ -32,10 +32,22 @@
       <canvas id="c" width="640" height="360" aria-label="As Super Renováveis"></canvas>
     </div>
     <div class="film" hidden>
-      <button type="button" class="film-btn" id="film-prev">◀ Anterior</button>
-      <button type="button" class="film-btn is-pause" id="film-pause" aria-pressed="false">❚❚ Pausar</button>
-      <button type="button" class="film-btn" id="film-next">Próximo ▶</button>
-      <button type="button" class="film-btn" id="film-restart">↺ Recomeçar</button>
+      <button type="button" class="film-btn" id="film-prev" aria-label="Anterior">
+        <span class="film-ico" aria-hidden="true">◀</span>
+        <span class="film-txt">Anterior</span>
+      </button>
+      <button type="button" class="film-btn is-pause" id="film-pause" aria-label="Pausar" aria-pressed="false">
+        <span class="film-ico" aria-hidden="true">❚❚</span>
+        <span class="film-txt">Pausar</span>
+      </button>
+      <button type="button" class="film-btn" id="film-next" aria-label="Próximo">
+        <span class="film-txt">Próximo</span>
+        <span class="film-ico" aria-hidden="true">▶</span>
+      </button>
+      <button type="button" class="film-btn" id="film-restart" aria-label="Recomeçar">
+        <span class="film-ico" aria-hidden="true">↺</span>
+        <span class="film-txt">Recomeçar</span>
+      </button>
     </div>
     <div class="touch">
       <div class="dpad">
