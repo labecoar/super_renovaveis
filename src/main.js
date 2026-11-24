@@ -65,23 +65,23 @@ const SKY = [
 
 const SIGNS = {
   A: "Sobrou energia? A bateria guarda.",
-  B: "Usina a gás: liga rápido, mas queima combustível fóssil.",
+  B: "Usina a gás: é cara e queima combustível fóssil.",
   C: "Vem aí a noite. Encha a bateria!",
   D: "Sem sol e sem vento. Agora é com a bateria.",
 };
 
 const WOLF_LINES = [
-  "Assina aqui, é rapidinho!",
-  "Bateria? Isso é luxo!",
-  "Termelétrica resolve. Confia.",
-  "Reuniãozinha? Só assinar…",
-  "Sol de noite? Imagina!",
+  "Assina aqui o contrato do gás, é rapidinho!",
+  "Bateria? Não vai dar certo!",
+  "Só mais 30 anos de termelétrica…",
+  "Vamos marcar uma reuniãozinha?",
+  "Sol de noite? Kkkkk",
 ];
 
 const BOSS_LINES = [
   "Sem gás, o Brasil apaga!",
-  "Bateria é coisa de celular.",
-  "Contrato de 30 anos. Assina!",
+  "Bateria é coisa de celular, menino.",
+  "Contrato de 30 anos, só assinar!",
 ];
 
 /** tempo pra ler balão; intervalo entre falas dos lobos */
@@ -91,20 +91,23 @@ const WOLF_CHAT_GAP = 8;
 const CARDS = [
   {
     title: "Sol e vento têm horário próprio",
-    text: "Painel solar só gera com luz. Turbina só gira com vento. A geração sobe e desce e nem sempre bate com o consumo.",
+    text: "Painel solar só gera com luz do sol. Turbina eólica precisa de vento. A geração sobe e desce ao longo do dia e nem sempre bate com a hora em que a gente mais usa energia, como no começo da noite.",
   },
   {
-    title: "Sobrou? Guarda.",
-    text: "Sol e vento às vezes produzem mais do que se consome. Baterias guardam a sobra e devolvem quando a geração cai.",
+    title: "Sobrou? Armazena.",
+    text: "Em muitos momentos, o Brasil produz mais energia solar e eólica do que o sistema consegue aproveitar. Sem onde guardar, parte dessa energia limpa é desperdiçada. Baterias armazenam essa energia e devolvem quando a geração cai.",
   },
   {
     title: "Menos fóssil quando escurece",
-    text: "Quando a renovável cai, térmicas a gás costumam cobrir. Com armazenamento, a energia do dia ajuda a noite.",
+    text: "Quando a geração renovável cai, muitas vezes quem cobre o buraco são usinas térmicas, várias delas a gás. Com armazenamento, a energia do dia ajuda a cobrir a noite e o país depende menos de combustíveis fósseis.",
   },
 ];
 
 const QUOTE =
-  "O futuro da energia não precisa ficar preso ao passado. Para avançar na transição energética, precisamos armazenar o futuro.";
+  "O futuro da energia não precisa ficar preso ao passado. O Brasil passou de fase! Com o armazenamento, é possível guardar energia renovável pra quando a gente mais precisa.";
+const QUOTE_TAG = "Esse é O Novo Poder Energético.";
+const QUOTE_SITE = "Entre no site www.onovopoderenergetico.com.br";
+let playPaused = false;
 
 /** Antes do mapa: objetivo, energia, inimigos e controles. Cada tela tem um retrato. */
 const LESSONS = [
@@ -413,7 +416,7 @@ const WOLF_GROUPS = {
     {
       tile: 96,
       table: true,
-      lines: ["Fechado! Mais 30 anos de gás.", "Assina aqui, é rapidinho."],
+      lines: ["Nós somos os Lobos Lobbistas! Energia de verdade é gás!"],
       wolves: [
         { dx: -18, face: 1, behind: false },
         { dx: 26, face: -1, behind: true },
@@ -600,11 +603,21 @@ function batMax() {
   return CFG.BATTERY_CELLS * CFG.CELL_SIZE;
 }
 
+/** Dicas flutuantes (+12, ARMAZENADO…) */
+let floatTips = [];
+
+function tip(text, x, y, color = PAL.Y) {
+  floatTips.push({ text, x, y, t: 1.15, color });
+}
+
 function collect(n) {
   const cellsBefore = Math.floor(p.battery / CFG.CELL_SIZE);
   const toBar = Math.min(CFG.ENERGY_MAX - p.energy, n);
+  const toBat = Math.min(batMax() - p.battery, n - toBar);
   p.energy += toBar;
-  p.battery = Math.min(batMax(), p.battery + (n - toBar));
+  p.battery += toBat;
+  tip(`+${n}`, p.x + p.w / 2, p.y - 4, PAL.Y);
+  if (toBat > 0) tip("ARMAZENADO NA BATERIA!", p.x + p.w / 2, p.y - 16, PAL.P);
   if (Math.floor(p.battery / CFG.CELL_SIZE) > cellsBefore) sfx("cell");
 }
 
@@ -664,7 +677,8 @@ function reset() {
   slowT = 0;
   endingAt = 0;
   wolvesOn = false;
-  said = {};
+  said = { morningHero: true };
+  floatTips = [];
   // legT NÃO zera — mantém o mesmo ritmo da tela inicial
   jumpLock = 0.2;
   windSpin = 0;
@@ -701,6 +715,8 @@ function openMap() {
   mapT = 0;
   mapSkip = false;
   jumpLock = 0.2;
+  playPaused = false;
+  syncPauseBtn();
   msg = null;
 }
 
@@ -718,6 +734,8 @@ function onMapAction() {
 }
 
 function beginPhase(n) {
+  playPaused = false;
+  syncPauseBtn();
   if (n === 1) {
     phase = 1;
     reset();
@@ -746,6 +764,7 @@ function beginPhase(n) {
   slowT = 0;
   catchT = 0;
   wolvesOn = false;
+  floatTips = [];
   boss.active = false;
   boss.cloudCd = 1.2;
   boss.alt = 0;
@@ -764,12 +783,15 @@ function beginPhase(n) {
   cam = clampCam(p.x);
   state = "play";
   jumpLock = 0.25;
+  say("Escureceu e o vento parou… ainda bem que eu guardei.");
 }
 
 function beginEnding() {
+  playPaused = false;
+  syncPauseBtn();
   endingAt = time;
   state = "ending";
-  msg = null;
+  say("Apaga nada. Eu guardei o sol de hoje.");
 }
 
 function finishPhase() {
@@ -814,19 +836,25 @@ addEventListener("keydown", (e) => {
     syncSoundButton();
     return;
   }
-  if (k === "escape") {
+  if (k === "escape" || k === "p") {
     if (settingsOpen) {
       closeSettings();
       return;
     }
-    if (state === "opening") {
+    if (state === "opening" && k === "escape") {
       if (openIdx < OPENING_COUNT - 1) showOpeningTitle();
       return;
     }
-    if (state === "play") showOpeningTitle();
+    if (state === "play" || state === "caught") {
+      togglePlayPause();
+      return;
+    }
     return;
   }
-  if (settingsOpen) return;
+  if (settingsOpen || playPaused) {
+    if (playPaused && [" ", "enter", "z"].includes(k)) togglePlayPause();
+    return;
+  }
   if (state === "opening" && k === "arrowleft") {
     prevOpening();
     return;
@@ -838,9 +866,33 @@ addEventListener("keydown", (e) => {
   if ([" ", "z", "arrowup", "w", "enter"].includes(k)) pressAction();
 });
 
+function togglePlayPause() {
+  if (state !== "play" && state !== "caught") return;
+  playPaused = !playPaused;
+  if (playPaused) {
+    keys.arrowleft = false;
+    keys.arrowright = false;
+    keys.a = false;
+    keys.d = false;
+  }
+  syncPauseBtn();
+}
+
+function syncPauseBtn() {
+  const btn = document.getElementById("touch-pause");
+  if (!btn) return;
+  btn.textContent = playPaused ? "▶" : "❚❚";
+  btn.setAttribute("aria-label", playPaused ? "Continuar" : "Pausar");
+  btn.setAttribute("aria-pressed", String(playPaused));
+}
+
 /** Pular / começar / avançar o final — teclado e botão de toque. */
 function pressAction() {
   if (settingsOpen) return;
+  if (playPaused) {
+    togglePlayPause();
+    return;
+  }
   if (state === "opening") {
     advanceOpening();
     return;
@@ -887,6 +939,10 @@ document.querySelectorAll(".touch [data-key]").forEach((btn) => {
     btn.setPointerCapture?.(e.pointerId);
     btn.classList.add("on");
     initAudio();
+    if (playPaused) {
+      togglePlayPause();
+      return;
+    }
     if (k === "jump") pressAction();
     else keys[k] = true;
   };
@@ -900,6 +956,13 @@ document.querySelectorAll(".touch [data-key]").forEach((btn) => {
   btn.addEventListener("pointerdown", down);
   ["pointerup", "pointercancel", "lostpointercapture"].forEach((ev) => btn.addEventListener(ev, up));
   btn.addEventListener("contextmenu", (e) => e.preventDefault());
+});
+
+document.getElementById("touch-pause")?.addEventListener("pointerdown", (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  initAudio();
+  togglePlayPause();
 });
 
 const gearBtn = document.querySelector(".gear");
@@ -995,6 +1058,10 @@ addEventListener("pointerdown", () => {
   initAudio();
   if (settingsOpen) {
     closeSettings();
+    return;
+  }
+  if (playPaused && (state === "play" || state === "caught")) {
+    togglePlayPause();
     return;
   }
   if (state === "opening") {
@@ -1121,11 +1188,15 @@ function wolfHit(w) {
   p.vy = -2.4;
   w.stun = CFG.WOLF_HIT_STUN;
   w.face = -dir; // sai pra longe; só volta ao deixar a tela
-  say(p.tired ? "Tô sem energia…" : "Te peguei! Assina aqui.", p.tired ? null : w, 2);
+  say(p.tired ? "Tô sem energia…" : "Te peguei! Você depende de mim!", p.tired ? null : w, 2);
 }
 
 function update(dt) {
   if (settingsOpen) return;
+  if (playPaused && (state === "play" || state === "caught")) {
+    legT += dt;
+    return;
+  }
   time += dt;
   legT += dt; // avança no título e no jogo com a mesma velocidade
   if (jumpLock > 0) jumpLock -= dt;
@@ -1154,11 +1225,24 @@ function update(dt) {
     }
     return;
   }
+  if (state === "ending" || state === "cards" || state === "done") {
+    if (msg && (msg.t -= dt) <= 0) msg = null;
+    return;
+  }
   if (state !== "play") return;
 
   if (msg && (msg.t -= dt) <= 0) msg = null;
+  if (!msg && said.morningHero) {
+    said.morningHero = false;
+    say("Que dia lindo! Com Sol e vento tem energia sobrando!");
+  }
   if (slowT > 0) slowT -= dt;
   if (windSpin > 0) windSpin -= dt;
+  for (let i = floatTips.length - 1; i >= 0; i--) {
+    floatTips[i].t -= dt;
+    floatTips[i].y -= 18 * dt;
+    if (floatTips[i].t <= 0) floatTips.splice(i, 1);
+  }
 
   updateEnergy(dt);
 
@@ -1258,6 +1342,11 @@ function update(dt) {
   if (phase === 1 && overlap(p, { x: TOWER_TX * T, y: GROUND_Y - 48, w: 16, h: 48 })) {
     finishPhase();
     return;
+  }
+
+  if (phase === 1 && p.x > 84 * T && !said.gasWolves && !msg) {
+    said.gasWolves = true;
+    say("ah não! Os Lobos Lobbistas!");
   }
 
   if (phase === 1 && p.x > 174 * T && !said.C && !msg) {
@@ -1619,6 +1708,19 @@ function drawMsg() {
   bubble(msg.text, w.x + w.w / 2, w.y - 2, w.sign ? "sign" : "speech");
 }
 
+function drawFloatTips() {
+  floatTips.forEach((f) => {
+    const a = Math.min(1, f.t * 2);
+    const x = f.x - cam;
+    const size = f.text.startsWith("+") ? 8 : 6;
+    ctx.globalAlpha = a;
+    // sombra escura pra ler no céu claro
+    text(f.text, x + 1, f.y + 1, size, PAL.K);
+    text(f.text, x, f.y, size, f.color);
+    ctx.globalAlpha = 1;
+  });
+}
+
 /** Sol/lua em disco pixelado (estilo do mockup do GDD). */
 function disc(cx, cy, r, color) {
   ctx.fillStyle = color;
@@ -1729,6 +1831,10 @@ function drawPlant(tx) {
   fill(ux + 16, GROUND_Y - 34, 8, 8, PAL.Y);
   fill(ux + 24, GROUND_Y - 56, 8, 56, PAL.s);
   fill(ux + 22, GROUND_Y - 62, 12, 8, PAL.g);
+  // letreiro GÁS (doc de textos)
+  fill(ux + 2, GROUND_Y - 18, 20, 8, PAL.K);
+  fill(ux + 3, GROUND_Y - 17, 18, 6, PAL.Y);
+  text("GÁS", ux + 12, GROUND_Y - 12, 5, PAL.K);
   // fumaça da chaminé
   const sx = ux + 26;
   const sy = GROUND_Y - 70 - Math.floor(time * 3 + tx) % 3;
@@ -1932,6 +2038,7 @@ function drawBoss() {
   drawSprite(ctx, g, boss.x, boss.y + bob, cam);
 
   if (boss.active) {
+    text("CHEFÃO DO GÁS", boss.x - cam + boss.w / 2, boss.y - 14, 6, PAL.Y);
     for (let i = 0; i < CFG.BOSS_HP; i++) {
       const hx = boss.x - cam + 3 + i * 7;
       fill(hx, boss.y - 9, 6, 5, PAL.K);
@@ -2187,9 +2294,10 @@ function drawEnding() {
   const houseY = GROUND_Y - HOUSE_H;
   const labels = [
     "Ana termina o dever de casa.",
-    "A comida da família continua gelada.",
+    "Agora a família tem comida armazenada pra semana toda.",
     "A mercearia da Dona Lúcia fica aberta.",
   ];
+  const houseTags = ["ESTUDO", "GELADEIRA", "MERCEARIA"];
 
   // painéis 44×61, medidos proporcionalmente no mock do GDD
   houses.forEach((hx) => {
@@ -2208,6 +2316,9 @@ function drawEnding() {
   }
 
   drawLampiao(43, GROUND_Y - 20, 1, 0, false, false, { night: true, moving: false });
+  if (msg && et < END_FIRST_AT + 0.4) {
+    bubble(msg.text, 43 + 8, GROUND_Y - 22);
+  }
 
   houses.forEach((hx, i) => {
     if (i < lit) {
@@ -2215,6 +2326,7 @@ function drawEnding() {
       ctx.fillRect(hx - 3, houseY - 3, HOUSE_W + 6, HOUSE_H + 4);
     }
     drawSprite(ctx, i < lit ? SPR.house.on : SPR.house.off, hx, houseY, 0, false, HOUSE_S);
+    if (i < lit) text(houseTags[i], hx + HOUSE_W / 2, houseY - 4, 5, PAL.Y);
   });
 
   // três células quadradas no canto, iguais às do slide
@@ -2229,10 +2341,12 @@ function drawEnding() {
   }
 
   if (et > END_QUOTE_AT) {
-    fill(16, 36, VW - 32, 48, "rgba(28,34,64,0.92)");
-    wrap(QUOTE, VW / 2, 50, VW - 44, 8, PAL.W);
+    fill(10, 28, VW - 20, 78, "rgba(28,34,64,0.92)");
+    const y1 = wrap(QUOTE, VW / 2, 40, VW - 36, 7, PAL.W);
+    text(QUOTE_TAG, VW / 2, y1 + 2, 7, PAL.Y);
+    wrap(QUOTE_SITE, VW / 2, y1 + 12, VW - 36, 6, PAL.C);
     if (et > END_ADVANCE_AT && Math.floor(time * 2) % 2 === 0) {
-      text("Espaço / toque: cartões", VW / 2, VH - 14, 8, PAL.P);
+      text("Espaço / toque: cartões", VW / 2, VH - 10, 7, PAL.P);
     }
   }
 }
@@ -2257,17 +2371,20 @@ function wrap(str, x, y, maxW, size, color) {
 function drawCards() {
   fill(0, 0, VW, VH, "#1d2650");
   const c = CARDS[cardIdx];
-  text(`CARTÃO ${cardIdx + 1}/3`, VW / 2, 28, 8, PAL.Y);
-  text(c.title, VW / 2, 52, 10, PAL.W);
-  wrap(c.text, VW / 2, 78, VW - 40, 8, PAL.G);
-  text("Espaço / toque", VW / 2, VH - 16, 8, PAL.P);
+  text(`CARTÃO ${cardIdx + 1}/3`, VW / 2, 18, 7, PAL.Y);
+  text(c.title, VW / 2, 36, 9, PAL.W);
+  wrap(c.text, VW / 2, 56, VW - 28, 7, PAL.G);
+  text("Espaço / toque", VW / 2, VH - 12, 7, PAL.P);
 }
 
 function drawDone() {
   fill(0, 0, VW, VH, "#1d2650");
-  text("Vila acesa!", VW / 2, 60, 14, PAL.Y);
-  text(`Você levou ${delivered} de energia para a vila`, VW / 2, 90, 8, PAL.W);
-  text("Espaço / toque: jogar de novo", VW / 2, 130, 8, PAL.P);
+  text("Vila acesa!", VW / 2, 28, 12, PAL.Y);
+  text(`Você levou ${delivered} de energia para a vila`, VW / 2, 48, 7, PAL.W);
+  const y1 = wrap(QUOTE, VW / 2, 64, VW - 28, 6, PAL.G);
+  text(QUOTE_TAG, VW / 2, y1 + 2, 7, PAL.Y);
+  wrap(QUOTE_SITE, VW / 2, y1 + 12, VW - 28, 6, PAL.C);
+  if (Math.floor(time * 2) % 2 === 0) text("Jogar de novo", VW / 2, VH - 12, 8, PAL.P);
 }
 
 const MAP_NODES = [
@@ -2578,8 +2695,19 @@ function draw() {
 
   drawHud();
 
-  if (inLevel) drawMsg();
+  if (inLevel) {
+    drawMsg();
+    drawFloatTips();
+  }
   if (state === "phaseClear") drawPhaseBanner();
+  if (playPaused && (state === "play" || state === "caught")) drawPause();
+}
+
+function drawPause() {
+  fill(0, 0, VW, VH, "rgba(11,13,28,0.72)");
+  fill(70, 58, VW - 140, 64, "rgba(28,34,64,0.95)");
+  text("Pausado", VW / 2, 84, 14, PAL.Y);
+  text("Continuar", VW / 2, 106, 8, PAL.W);
 }
 
 // atalho de debug: ?zone=B|C|tower|D|boss|map|map1|map2|ending|cards

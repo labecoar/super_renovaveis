@@ -525,7 +525,7 @@ const SC = [
     },
   },
   {
-    text: "Para conseguir armazenar energia, ele precisa encontrar o grande tesouro: a [Bateria Mãe].",
+    text: "Para conseguir armazenar energia, ele precisa encontrar o maior tesouro: a [Grande Bateria].",
     min: 7.5,
     draw(t) {
       sky("#0e122a", "#2b1f4a", 0, 140, 12);
@@ -561,7 +561,7 @@ const SC = [
       [[56, 106, 1], [62, 100, 2], [70, 92, 3]].forEach(([x, y, r], i) => {
         if (t > 0.2 + i * 0.15) disc(x, y, r, "#c3c9d6");
       });
-      if (t > 1.6) alpha(ease((t - 1.6) / 0.5), () => txt("A BATERIA MÃE", 210, 4, 40, PAL.Y, "center", PAL.K, true));
+      if (t > 1.6) alpha(ease((t - 1.6) / 0.5), () => txt("A GRANDE BATERIA", 210, 4, 36, PAL.Y, "center", PAL.K, true));
     },
   },
   {
@@ -598,14 +598,14 @@ const SC = [
       R(156, 98, 34, 10, PAL.K);
       R(157, 99, 32, 8, "#c98a5a");
       R(186, 100, 4, 6, PAL.K);
-      txt("BATERIA MÃE", 173, 99.6, 16, PAL.K, "center", null, true);
+      txt("GRANDE BATERIA", 173, 99.6, 14, PAL.K, "center", null, true);
       const x = -20 + t * 44;
       const f = Math.floor(t * 8) % 2;
       spr(hero(f ? "run1" : "run2", Math.floor(t * 12), false), x, 124 - 28 - f);
     },
   },
   {
-    text: "mas vai precisar enfrentar o famoso [Ratão do Gás] e seus capangas: os [Lobos Lobbistas].",
+    text: "mas vai precisar enfrentar o famoso [Ratão do gás] e seus capangas: os [Lobos Lobbistas].",
     min: 8,
     draw(t) {
       sky("#1a0b1f", "#5a1a2a", 0, 140, 12);
@@ -668,8 +668,12 @@ const SC = [
         txt("AS SUPER", 160, 10, 44, PAL.W, "center", PAL.K, true);
         txt("RENOVÁVEIS", 160, 24, 76, PAL.Y, "center", PAL.K, true);
       });
-      if (t > 1.2) txt("A aventura de Zé Voltinho", 160, 50, 30, PAL.K, "center", null);
-      if (t > 1.8 && Math.floor(t * 2) % 2 === 0) txt("Aperte para começar", 160, 162, 30, PAL.W, "center", PAL.K);
+      if (t > 1.2) txt("Guarde o sol e o vento de hoje", 160, 48, 22, PAL.K, "center", null);
+      if (t > 1.35) txt("para a noite.", 160, 58, 22, PAL.K, "center", null);
+      if (t > 1.8 && Math.floor(t * 2) % 2 === 0) {
+        const touch = typeof document !== "undefined" && document.body.classList.contains("is-touch");
+        txt(touch ? "Toque para jogar" : "Aperte Espaço", 160, 162, 30, PAL.W, "center", PAL.K);
+      }
     },
   },
 ];
