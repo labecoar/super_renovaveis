@@ -175,17 +175,18 @@ function chromeH(el) {
   return el.getBoundingClientRect().height;
 }
 
-/** Celular: cola o stage na área visível — giro/barra do Safari não desloca o quadro. */
+/** Celular: cola o stage na área visível e centraliza na horizontal. */
 function pinMobileFrame() {
   const stage = document.querySelector(".stage");
   if (!stage) return;
-  const touch = matchMedia("(hover: none) and (pointer: coarse)").matches;
+  const touch = typeof isTouchDevice === "function" && isTouchDevice();
   if (!touch) {
     stage.style.position = "";
     stage.style.left = "";
     stage.style.top = "";
     stage.style.width = "";
     stage.style.height = "";
+    document.body.classList.remove("is-land");
     return;
   }
   const vv = window.visualViewport;
@@ -198,6 +199,7 @@ function pinMobileFrame() {
   stage.style.top = `${top}px`;
   stage.style.width = `${w}px`;
   stage.style.height = `${h}px`;
+  document.body.classList.toggle("is-land", w > h);
   if (window.scrollX || window.scrollY) window.scrollTo(0, 0);
 }
 
@@ -694,7 +696,13 @@ if (reduceOpen) {
 document.body.classList.add("is-gated");
 
 function isTouchDevice() {
-  return matchMedia("(hover: none) and (pointer: coarse)").matches;
+  if (matchMedia("(pointer: coarse)").matches) return true;
+  if (matchMedia("(hover: none)").matches && navigator.maxTouchPoints > 0) return true;
+  // simulador do iPhone usa o mouse do Mac — UA + tela pequena ainda é celular
+  const ua = navigator.userAgent || "";
+  const phone = /iPhone|iPad|iPod|Android/i.test(ua);
+  const shortSide = Math.min(screen.width, screen.height);
+  return phone && shortSide <= 900;
 }
 
 async function requestGameFullscreen() {

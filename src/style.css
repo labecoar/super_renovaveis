@@ -572,14 +572,20 @@ body.is-immersive .hint {
   display: none !important;
 }
 
-body.is-immersive .stage {
+body.is-immersive .stage,
+body.is-touch.is-land .stage {
   gap: 0;
   width: 100%;
   height: 100%;
   max-width: none;
   max-height: none;
+  align-items: center;
   justify-content: center;
   overflow: hidden;
+}
+
+body.is-touch.is-land .bezel {
+  margin: auto;
 }
 
 body.is-immersive .bezel {
@@ -662,11 +668,10 @@ body.is-immersive .touch {
   pointer-events: none;
 }
 
-/* d-pad / PULAR só em ponteiro grosso (celular), nunca no mouse/PC */
-@media (hover: none) and (pointer: coarse) {
-  body.is-immersive.is-playing .touch {
-    display: block !important;
-  }
+/* d-pad / PULAR na fase, só com body.is-touch (celular / simulador) */
+body.is-touch.is-playing .touch,
+body.is-immersive.is-touch.is-playing .touch {
+  display: block !important;
 }
 
 body.is-immersive .touch .dpad {
