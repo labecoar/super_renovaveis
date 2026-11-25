@@ -186,6 +186,20 @@ function syncEmbedClass() {
   return embed;
 }
 
+/** Tamanho útil: no embed usa o iframe; senão visualViewport. */
+function viewportSize(embed) {
+  if (embed) {
+    const w = document.documentElement.clientWidth || window.innerWidth;
+    const h = document.documentElement.clientHeight || window.innerHeight;
+    return { w, h };
+  }
+  const vv = window.visualViewport;
+  return {
+    w: vv?.width || window.innerWidth,
+    h: vv?.height || window.innerHeight,
+  };
+}
+
 function fitIntegerScale() {
   const embed = syncEmbedClass();
   const dpr = Math.max(1, Math.round(window.devicePixelRatio) || 1);
@@ -197,54 +211,53 @@ function fitIntegerScale() {
   const touchBar = document.querySelector(".touch");
   const topbar = document.querySelector(".topbar");
   const hint = document.querySelector(".hint");
-  const vv = window.visualViewport;
-  const viewW = vv?.width || window.innerWidth;
-  const viewH = vv?.height || window.innerHeight;
-  const stageW = stage ? stage.clientWidth : viewW;
+  const { w: viewW, h: viewH } = viewportSize(embed);
+  const stageW = stage ? stage.clientWidth || viewW : viewW;
   const bezelPad = bezel
     ? (parseFloat(getComputedStyle(bezel).paddingLeft) || 0) * 2 + (embed || short ? 2 : 4)
     : touch
       ? 8
       : 28;
-  const immersive = touch && document.body.classList.contains("is-immersive");
-  const gap = immersive ? 0 : touch || embed ? (short ? 2 : 4) : 14;
+  const immersive = document.body.classList.contains("is-immersive");
+  const gap = immersive || embed ? 0 : touch || short ? 2 : 14;
   // body.is-opening / film visível — evita pegar `state` antes do init
   const opening = document.body.classList.contains("is-opening") || (film && !film.hidden);
   const topbarFlow =
-    !immersive && topbar && getComputedStyle(topbar).position !== "absolute"
+    !immersive && !embed && topbar && getComputedStyle(topbar).position !== "absolute"
       ? chromeH(topbar)
       : 0;
-  // immersive: film/touch são overlay — não reservam altura
-  const filmH = immersive
-    ? 0
-    : opening
-      ? chromeH(film) || (touch ? (short ? 34 : 44) : 0)
-      : 0;
-  const touchH = immersive || opening ? 0 : chromeH(touchBar);
-  const extras = immersive
-    ? 4
-    : topbarFlow +
-      filmH +
-      touchH +
-      chromeH(hint) +
-      gap * (filmH || touchH ? 2 : 1) +
-      (embed ? 10 : touch ? 4 : 24);
-  // immersive: caber inteiro (sem crop de texto/jogo); safe area leve
-  const edgePad = immersive ? 2 : bezelPad;
-  const availW = Math.max(120, Math.min(stageW, viewW) - edgePad);
-  const availH = Math.max(72, viewH - extras - edgePad);
+  // immersive/embed: film/touch overlay — não reservam altura
+  const filmH =
+    immersive || embed
+      ? 0
+      : opening
+        ? chromeH(film) || (touch ? (short ? 34 : 44) : 0)
+        : 0;
+  const touchH = immersive || embed || opening ? 0 : chromeH(touchBar);
+  const extras =
+    immersive || embed
+      ? 2
+      : topbarFlow +
+        filmH +
+        touchH +
+        chromeH(hint) +
+        gap * (filmH || touchH ? 2 : 1) +
+        (touch ? 4 : 24);
+  const edgePad = immersive || embed ? 0 : bezelPad;
+  const availW = Math.max(80, Math.min(stageW, viewW) - edgePad);
+  const availH = Math.max(45, viewH - extras - edgePad);
   const baseW = VW * SCALE;
   const baseH = VH * SCALE;
   const ratio = Math.min(availW / baseW, availH / baseH);
-  // PC: ~80% do espaço. Celular/iframe: preenche tudo que couber (sem teto baixo).
+  // PC: ~80%. Celular/iframe: usa 100% do espaço disponível (adaptive).
   const fit = touch || embed
-    ? Math.max(0.2, Math.min(ratio, 2.2))
+    ? Math.max(0.15, Math.min(ratio, 2.5))
     : Math.max(0.3, Math.min(ratio, 1), ratio * 0.8);
 
   const k = Math.max(1, Math.ceil(fit * dpr));
   let cssW = Math.floor(baseW * fit);
   let cssH = Math.floor(baseH * fit);
-  // nunca estourar a viewport (evita corte)
+  // nunca estourar o espaço do site/viewport
   if (cssW > availW) {
     cssW = Math.floor(availW);
     cssH = Math.floor((cssW * baseH) / baseW);
@@ -260,20 +273,19 @@ function fitIntegerScale() {
   viewScale = SCALE * k;
   ctx.imageSmoothingEnabled = false;
 
-  // 2ª passagem: se chrome real ultrapassar (não no immersive/overlay)
-  if ((touch || embed) && !immersive) {
+  // 2ª passagem: garante que nada vaze do iframe/viewport
+  if (touch || embed) {
     requestAnimationFrame(() => {
       const bezelEl = document.querySelector(".bezel");
       const filmEl = document.querySelector(".film");
       const touchEl = document.querySelector(".touch");
       const stageEl = document.querySelector(".stage");
       if (!bezelEl || !stageEl) return;
-      const vvH = window.visualViewport?.height || window.innerHeight;
-      const vvW = window.visualViewport?.width || window.innerWidth;
+      const box = viewportSize(embed);
       const bottom = Math.max(
         bezelEl.getBoundingClientRect().bottom,
-        filmEl && !filmEl.hidden ? filmEl.getBoundingClientRect().bottom : 0,
-        touchEl && getComputedStyle(touchEl).display !== "none"
+        !immersive && filmEl && !filmEl.hidden ? filmEl.getBoundingClientRect().bottom : 0,
+        !immersive && touchEl && getComputedStyle(touchEl).display !== "none"
           ? touchEl.getBoundingClientRect().bottom
           : 0,
       );
@@ -281,8 +293,8 @@ function fitIntegerScale() {
         bezelEl.getBoundingClientRect().right,
         stageEl.getBoundingClientRect().right,
       );
-      const overH = bottom - vvH;
-      const overW = right - vvW;
+      const overH = bottom - box.h;
+      const overW = right - box.w;
       if (overH <= 1 && overW <= 1) return;
       const curW = parseFloat(cv.style.width) || cssW;
       const curH = parseFloat(cv.style.height) || cssH;
@@ -290,7 +302,6 @@ function fitIntegerScale() {
       let nextW = curW;
       if (overH > 1) nextH = Math.max(45, Math.floor(curH - overH - 2));
       if (overW > 1) nextW = Math.max(80, Math.floor(curW - overW - 2));
-      // manter 16:9
       const byH = Math.floor((nextH * baseW) / baseH);
       const byW = Math.floor((nextW * baseH) / baseW);
       if (nextH < curH || nextW < curW) {
@@ -310,6 +321,11 @@ fitIntegerScale();
 addEventListener("resize", fitIntegerScale);
 addEventListener("orientationchange", () => setTimeout(fitIntegerScale, 80));
 visualViewport?.addEventListener("resize", fitIntegerScale);
+// site (Wix) muda o iframe sem sempre disparar resize na window
+if (typeof ResizeObserver !== "undefined") {
+  const ro = new ResizeObserver(() => fitIntegerScale());
+  ro.observe(document.documentElement);
+}
 
 /* ===== mapa ===== */
 const solid = Array.from({ length: 12 }, () => Array(MAP_W).fill(0));
@@ -671,12 +687,35 @@ async function lockLandscape() {
 }
 
 function syncImmersive() {
-  const on = !gated && isTouchDevice();
+  // touch ou embed do site: canvas max + controles em overlay (cabe no espaço)
+  let embed = false;
+  try {
+    embed = window.self !== window.top;
+  } catch {
+    embed = true;
+  }
+  const on = !gated && (isTouchDevice() || embed);
   document.body.classList.toggle("is-immersive", on);
 }
 
+/** Orientação do aparelho (não do iframe — no Wix/embed a caixa mente o aspect). */
+function isDevicePortrait() {
+  try {
+    const t = screen.orientation?.type;
+    if (t) return t.startsWith("portrait");
+  } catch {
+    /* cross-origin / privacidade */
+  }
+  if (typeof window.orientation === "number") {
+    return window.orientation === 0 || window.orientation === 180;
+  }
+  const w = window.visualViewport?.width || window.innerWidth;
+  const h = window.visualViewport?.height || window.innerHeight;
+  return h > w;
+}
+
 function isOrientFreeze() {
-  return !gated && isTouchDevice() && matchMedia("(orientation: portrait)").matches;
+  return !gated && isTouchDevice() && isDevicePortrait();
 }
 
 function syncOrientHint() {
@@ -693,6 +732,20 @@ function syncOrientHint() {
     openPlaying = true;
     syncFilm();
   }
+}
+
+function onOrientationMaybeChanged() {
+  syncOrientHint();
+  fitIntegerScale();
+  // iOS / iframe demoram a atualizar tamanho — recheca
+  setTimeout(() => {
+    syncOrientHint();
+    fitIntegerScale();
+  }, 120);
+  setTimeout(() => {
+    syncOrientHint();
+    fitIntegerScale();
+  }, 400);
 }
 
 async function enterPlay() {
@@ -1038,12 +1091,8 @@ addEventListener("keydown", (e) => {
     if (playPaused && [" ", "enter", "z"].includes(k)) togglePlayPause();
     return;
   }
-  if (state === "opening" && k === "arrowleft") {
-    prevOpening();
-    return;
-  }
-  if (state === "opening" && k === "arrowright") {
-    nextOpening();
+  if (state === "opening") {
+    pressAction();
     return;
   }
   if ([" ", "z", "arrowup", "w", "enter"].includes(k)) pressAction();
@@ -1208,21 +1257,11 @@ function syncFilm() {
   const opening = state === "opening";
   const playing = state === "play" || state === "caught";
   const wasHidden = filmBar?.hidden;
-  // no celular a história avança no toque — esconde a barra do film
-  if (filmBar) filmBar.hidden = !opening || gated || isTouchDevice();
+  // web e mobile: sem barra do film — avança no clique / Espaço / qualquer tecla
+  if (filmBar) filmBar.hidden = true;
   document.body.classList.toggle("is-opening", opening && !gated);
   document.body.classList.toggle("is-playing", playing && !gated);
   document.body.classList.toggle("is-touch", matchMedia("(hover: none) and (pointer: coarse)").matches);
-  if (!filmPause) {
-    if (filmBar && wasHidden !== filmBar.hidden) fitIntegerScale();
-    return;
-  }
-  const pauseIco = filmPause.querySelector(".film-ico");
-  const pauseTxt = filmPause.querySelector(".film-txt");
-  if (pauseIco) pauseIco.textContent = openPlaying ? "❚❚" : "▶";
-  if (pauseTxt) pauseTxt.textContent = openPlaying ? "Pausar" : "Continuar";
-  filmPause.setAttribute("aria-label", openPlaying ? "Pausar" : "Continuar");
-  filmPause.setAttribute("aria-pressed", String(!openPlaying));
   if (filmBar && wasHidden !== filmBar.hidden) fitIntegerScale();
 }
 
@@ -1251,25 +1290,21 @@ document.getElementById("play-gate-btn")?.addEventListener("pointerdown", (e) =>
 });
 
 function onFullscreenChange() {
-  syncOrientHint();
-  fitIntegerScale();
-  setTimeout(() => {
-    fitIntegerScale();
-    syncOrientHint();
-  }, 120);
+  onOrientationMaybeChanged();
 }
 document.addEventListener("fullscreenchange", onFullscreenChange);
 document.addEventListener("webkitfullscreenchange", onFullscreenChange);
 
-addEventListener("orientationchange", () => {
-  setTimeout(() => {
-    syncOrientHint();
-    fitIntegerScale();
-  }, 80);
-});
-addEventListener("resize", syncOrientHint);
-visualViewport?.addEventListener("resize", syncOrientHint);
-matchMedia("(orientation: portrait)").addEventListener("change", syncOrientHint);
+addEventListener("orientationchange", onOrientationMaybeChanged);
+addEventListener("resize", onOrientationMaybeChanged);
+visualViewport?.addEventListener("resize", onOrientationMaybeChanged);
+matchMedia("(orientation: portrait)").addEventListener("change", onOrientationMaybeChanged);
+matchMedia("(orientation: landscape)").addEventListener("change", onOrientationMaybeChanged);
+try {
+  screen.orientation?.addEventListener?.("change", onOrientationMaybeChanged);
+} catch {
+  /* ignore */
+}
 
 syncImmersive();
 syncFilm();
@@ -1463,16 +1498,11 @@ function update(dt) {
   }
   if (state === "opening") {
     if (openPlaying) {
-      // celular: história mais lenta e sem auto-avançar — só no toque
-      const touch = isTouchDevice();
-      openT += dt * (touch ? 0.72 : 1);
+      // história mais lenta; não auto-avança — clique / Espaço / tecla
+      openT += dt * (isTouchDevice() ? 0.72 : 0.85);
       const frame = openingFrame(openIdx);
-      if (touch) {
-        const cap = Math.max(frame.typeEnd + 0.2, frame.dur - 0.45);
-        if (openT > cap) openT = cap;
-      } else if (openT >= frame.dur) {
-        nextOpening();
-      }
+      const cap = Math.max(frame.typeEnd + 0.2, frame.dur - 0.45);
+      if (openT > cap) openT = cap;
     }
     return;
   }
