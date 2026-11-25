@@ -2,7 +2,10 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>As Super Renováveis</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -30,6 +33,21 @@
     </div>
     <div class="bezel">
       <canvas id="c" width="640" height="360" aria-label="As Super Renováveis"></canvas>
+      <div class="play-gate" id="play-gate">
+        <button type="button" class="play-gate-btn" id="play-gate-btn">Jogar</button>
+      </div>
+    </div>
+    <div class="orient-hint" id="orient-hint" hidden aria-live="polite">
+      <div class="orient-hint-card">
+        <span class="orient-hint-phone" aria-hidden="true">
+          <svg viewBox="0 0 48 48" width="48" height="48">
+            <rect x="14" y="4" width="20" height="40" rx="3" fill="none" stroke="currentColor" stroke-width="3"/>
+            <rect x="20" y="8" width="8" height="2.5" rx="1" fill="currentColor"/>
+            <circle cx="24" cy="38" r="2" fill="currentColor"/>
+          </svg>
+        </span>
+        <p>Vire o celular</p>
+      </div>
     </div>
     <div class="film" hidden>
       <button type="button" class="film-btn" id="film-prev" aria-label="Anterior">

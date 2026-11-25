@@ -20,6 +20,8 @@ const CFG = {
   ENERGY_START: 60,
   DRAIN_MOVING: 3,
   DRAIN_IDLE: 1,
+  /** Tempo sem energia nem bateria até voltar ao checkpoint. */
+  EMPTY_RESTART: 2.8,
   SUN_GAIN: 12,
   WIND_GAIN: 12,
   BATTERY_CELLS: 3,
@@ -166,16 +168,29 @@ let viewScale = SCALE;
 /**
  * Escala + Retina:
  * - mede a chrome real (título, film, toque) em vez de chute fixo
- * - buffer do canvas × DPR pra 1 pixel lógico = N pixels físicos
+ * - no celular / iframe: ocupa o máximo sem estourar a viewport
  */
 function chromeH(el) {
   if (!el || el.hidden || getComputedStyle(el).display === "none") return 0;
   return el.getBoundingClientRect().height;
 }
 
+function syncEmbedClass() {
+  let embed = false;
+  try {
+    embed = window.self !== window.top;
+  } catch {
+    embed = true;
+  }
+  document.body.classList.toggle("is-embed", embed);
+  return embed;
+}
+
 function fitIntegerScale() {
+  const embed = syncEmbedClass();
   const dpr = Math.max(1, Math.round(window.devicePixelRatio) || 1);
   const touch = matchMedia("(hover: none) and (pointer: coarse)").matches;
+  const short = matchMedia("(max-height: 500px)").matches;
   const stage = document.querySelector(".stage");
   const bezel = document.querySelector(".bezel");
   const film = document.querySelector(".film");
@@ -187,43 +202,110 @@ function fitIntegerScale() {
   const viewH = vv?.height || window.innerHeight;
   const stageW = stage ? stage.clientWidth : viewW;
   const bezelPad = bezel
-    ? (parseFloat(getComputedStyle(bezel).paddingLeft) || 0) * 2 + 4
+    ? (parseFloat(getComputedStyle(bezel).paddingLeft) || 0) * 2 + (embed || short ? 2 : 4)
     : touch
-      ? 24
+      ? 8
       : 28;
-  const gap = touch ? 6 : 14;
+  const immersive = touch && document.body.classList.contains("is-immersive");
+  const gap = immersive ? 0 : touch || embed ? (short ? 2 : 4) : 14;
   // body.is-opening / film visível — evita pegar `state` antes do init
   const opening = document.body.classList.contains("is-opening") || (film && !film.hidden);
   const topbarFlow =
-    topbar && getComputedStyle(topbar).position !== "absolute" ? chromeH(topbar) : 0;
-  // controles ficam embaixo do canvas (nunca por cima das falas)
-  const extras =
-    topbarFlow +
-    (opening ? chromeH(film) || (touch ? 40 : 0) : 0) +
-    (!opening ? chromeH(touchBar) : 0) +
-    chromeH(hint) +
-    gap * (opening || touch ? 2 : 3) +
-    (touch ? 4 : 24);
-  const availW = Math.max(160, Math.min(stageW, viewW) - bezelPad);
-  const availH = Math.max(90, viewH - extras - bezelPad);
+    !immersive && topbar && getComputedStyle(topbar).position !== "absolute"
+      ? chromeH(topbar)
+      : 0;
+  // immersive: film/touch são overlay — não reservam altura
+  const filmH = immersive
+    ? 0
+    : opening
+      ? chromeH(film) || (touch ? (short ? 34 : 44) : 0)
+      : 0;
+  const touchH = immersive || opening ? 0 : chromeH(touchBar);
+  const extras = immersive
+    ? 4
+    : topbarFlow +
+      filmH +
+      touchH +
+      chromeH(hint) +
+      gap * (filmH || touchH ? 2 : 1) +
+      (embed ? 10 : touch ? 4 : 24);
+  // immersive: caber inteiro (sem crop de texto/jogo); safe area leve
+  const edgePad = immersive ? 2 : bezelPad;
+  const availW = Math.max(120, Math.min(stageW, viewW) - edgePad);
+  const availH = Math.max(72, viewH - extras - edgePad);
   const baseW = VW * SCALE;
   const baseH = VH * SCALE;
   const ratio = Math.min(availW / baseW, availH / baseH);
-  // PC: ~80% do espaço livre, podendo passar de 640×360. Celular: preenche o que sobrou.
-  const fit = touch
-    ? Math.max(0.25, Math.min(ratio, 1.35))
+  // PC: ~80% do espaço. Celular/iframe: preenche tudo que couber (sem teto baixo).
+  const fit = touch || embed
+    ? Math.max(0.2, Math.min(ratio, 2.2))
     : Math.max(0.3, Math.min(ratio, 1), ratio * 0.8);
 
   const k = Math.max(1, Math.ceil(fit * dpr));
-  const cssW = Math.floor(baseW * fit);
-  const cssH = Math.floor(baseH * fit);
-  cv.style.width = `${cssW}px`;
-  cv.style.height = `${cssH}px`;
+  let cssW = Math.floor(baseW * fit);
+  let cssH = Math.floor(baseH * fit);
+  // nunca estourar a viewport (evita corte)
+  if (cssW > availW) {
+    cssW = Math.floor(availW);
+    cssH = Math.floor((cssW * baseH) / baseW);
+  }
+  if (cssH > availH) {
+    cssH = Math.floor(availH);
+    cssW = Math.floor((cssH * baseW) / baseH);
+  }
+  cv.style.width = `${Math.max(80, cssW)}px`;
+  cv.style.height = `${Math.max(45, cssH)}px`;
   cv.width = baseW * k;
   cv.height = baseH * k;
   viewScale = SCALE * k;
   ctx.imageSmoothingEnabled = false;
+
+  // 2ª passagem: se chrome real ultrapassar (não no immersive/overlay)
+  if ((touch || embed) && !immersive) {
+    requestAnimationFrame(() => {
+      const bezelEl = document.querySelector(".bezel");
+      const filmEl = document.querySelector(".film");
+      const touchEl = document.querySelector(".touch");
+      const stageEl = document.querySelector(".stage");
+      if (!bezelEl || !stageEl) return;
+      const vvH = window.visualViewport?.height || window.innerHeight;
+      const vvW = window.visualViewport?.width || window.innerWidth;
+      const bottom = Math.max(
+        bezelEl.getBoundingClientRect().bottom,
+        filmEl && !filmEl.hidden ? filmEl.getBoundingClientRect().bottom : 0,
+        touchEl && getComputedStyle(touchEl).display !== "none"
+          ? touchEl.getBoundingClientRect().bottom
+          : 0,
+      );
+      const right = Math.max(
+        bezelEl.getBoundingClientRect().right,
+        stageEl.getBoundingClientRect().right,
+      );
+      const overH = bottom - vvH;
+      const overW = right - vvW;
+      if (overH <= 1 && overW <= 1) return;
+      const curW = parseFloat(cv.style.width) || cssW;
+      const curH = parseFloat(cv.style.height) || cssH;
+      let nextH = curH;
+      let nextW = curW;
+      if (overH > 1) nextH = Math.max(45, Math.floor(curH - overH - 2));
+      if (overW > 1) nextW = Math.max(80, Math.floor(curW - overW - 2));
+      // manter 16:9
+      const byH = Math.floor((nextH * baseW) / baseH);
+      const byW = Math.floor((nextW * baseH) / baseW);
+      if (nextH < curH || nextW < curW) {
+        if (byH <= nextW) {
+          cv.style.width = `${byH}px`;
+          cv.style.height = `${nextH}px`;
+        } else {
+          cv.style.width = `${nextW}px`;
+          cv.style.height = `${byW}px`;
+        }
+      }
+    });
+  }
 }
+syncEmbedClass();
 fitIntegerScale();
 addEventListener("resize", fitIntegerScale);
 addEventListener("orientationchange", () => setTimeout(fitIntegerScale, 80));
@@ -532,6 +614,7 @@ let wolvesOn = false;
 let said = {};
 let legT = 0; // relógio só da animação do Lampião (título = jogo)
 let jumpLock = 0; // evita pular no mesmo Espaço que inicia
+let emptyT = 0; // segundos seguidos sem energia + bateria
 let phase = 1;
 let fasesConcluidas = 0;
 let carried = { energy: CFG.ENERGY_START, battery: 0 };
@@ -544,11 +627,95 @@ let settingsOpen = false;
 let openIdx = 0;
 let openT = 0;
 let openSkip = false;
-let openPlaying = true;
+/** Gate “Jogar”: opening congelada até o primeiro clique. */
+let gated = true;
+let openPlaying = false;
 const reduceOpen = matchMedia("(prefers-reduced-motion: reduce)").matches;
 if (reduceOpen) {
   openT = openingFrame(0).dur - 0.6;
   openSkip = true;
+}
+document.body.classList.add("is-gated");
+
+function isTouchDevice() {
+  return matchMedia("(hover: none) and (pointer: coarse)").matches;
+}
+
+async function requestGameFullscreen() {
+  const el = document.documentElement;
+  try {
+    if (document.fullscreenElement || document.webkitFullscreenElement) return true;
+    if (el.requestFullscreen) {
+      await el.requestFullscreen();
+      return true;
+    }
+    if (el.webkitRequestFullscreen) {
+      el.webkitRequestFullscreen();
+      return true;
+    }
+  } catch {
+    /* iframe sem allow=fullscreen, etc. */
+  }
+  return false;
+}
+
+async function lockLandscape() {
+  try {
+    const o = screen.orientation;
+    if (!o?.lock) return false;
+    await o.lock("landscape");
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function syncImmersive() {
+  const on = !gated && isTouchDevice();
+  document.body.classList.toggle("is-immersive", on);
+}
+
+function isOrientFreeze() {
+  return !gated && isTouchDevice() && matchMedia("(orientation: portrait)").matches;
+}
+
+function syncOrientHint() {
+  const tip = document.getElementById("orient-hint");
+  if (!tip) return;
+  const show = isOrientFreeze();
+  const was = !tip.hidden;
+  tip.hidden = !show;
+  document.body.classList.toggle("is-orient-freeze", show);
+  if (show && state === "opening") {
+    openPlaying = false;
+    if (!was) syncFilm();
+  } else if (!show && was && state === "opening") {
+    openPlaying = true;
+    syncFilm();
+  }
+}
+
+async function enterPlay() {
+  if (!gated) return;
+  initAudio();
+  if (isTouchDevice()) {
+    await requestGameFullscreen();
+    await lockLandscape();
+  }
+  gated = false;
+  document.body.classList.remove("is-gated");
+  const gate = document.getElementById("play-gate");
+  if (gate) gate.hidden = true;
+  // só começa a opening se já estiver deitado (ou no PC)
+  openPlaying = !isOrientFreeze();
+  syncImmersive();
+  syncFilm();
+  fitIntegerScale();
+  syncOrientHint();
+  setTimeout(() => {
+    fitIntegerScale();
+    syncOrientHint();
+  }, 120);
 }
 
 /** Volta pro cartaz final da abertura, sem repetir os 10 quadros. */
@@ -591,7 +758,8 @@ function nextOpening() {
 
 function advanceOpening() {
   const frame = openingFrame(openIdx);
-  if (frame.text && !openSkip && (openT - 0.5) * 30 < frame.chars) {
+  const cps = isTouchDevice() ? 16 : 30;
+  if (frame.text && !openSkip && (openT - 0.5) * cps < frame.chars) {
     openSkip = true;
     openT = Math.max(openT, 0.5);
     return;
@@ -629,6 +797,7 @@ function saveCp(cp) {
 }
 
 function restoreCp() {
+  emptyT = 0;
   const s = p.cp;
   p.x = s.x;
   p.y = s.y;
@@ -646,7 +815,13 @@ function restoreCp() {
 function clampCam(x) {
   const min = phase === 2 ? PHASE2_START * T : 0;
   const worldEnd = phase === 1 ? (TOWER_TX + 6) * T : MAP_W * T;
-  return Math.max(min, Math.min(Math.max(min, worldEnd - VW), x - 100));
+  // ~1/3 da tela (vê mais o que vem pela frente); no celular libera um pouco
+  // a câmera à esquerda no começo pra não colar o herói na borda
+  const touch = isTouchDevice();
+  const bias = Math.floor(VW / 3);
+  const camMin = touch ? min - Math.floor(VW * 0.2) : min;
+  const camMax = Math.max(min, worldEnd - VW);
+  return Math.max(camMin, Math.min(camMax, x - bias));
 }
 
 function reset() {
@@ -670,6 +845,7 @@ function reset() {
   time = 0;
   jbuf = 0;
   coy = 0;
+  emptyT = 0;
   catchT = 0;
   say("Zé Voltinho, ontem a geladeira desligou de novo!", null);
   cardIdx = 0;
@@ -739,12 +915,14 @@ function beginPhase(n) {
   if (n === 1) {
     phase = 1;
     reset();
+    cam = clampCam(p.x);
     state = "play";
     jumpLock = 0.25;
     return;
   }
   phase = 2;
   windSpin = 0;
+  emptyT = 0;
   p.x = PHASE2_START * T + 22;
   p.y = GROUND_Y - 20;
   p.vx = 0;
@@ -831,6 +1009,11 @@ addEventListener("keydown", (e) => {
   if (e.repeat) return;
   initAudio();
   const k = e.key.toLowerCase();
+  if (gated) {
+    if ([" ", "enter"].includes(k)) enterPlay();
+    return;
+  }
+  if (isOrientFreeze()) return;
   if (k === "m") {
     toggleMute();
     syncSoundButton();
@@ -888,6 +1071,7 @@ function syncPauseBtn() {
 
 /** Pular / começar / avançar o final — teclado e botão de toque. */
 function pressAction() {
+  if (gated || isOrientFreeze()) return;
   if (settingsOpen) return;
   if (playPaused) {
     togglePlayPause();
@@ -936,6 +1120,7 @@ document.querySelectorAll(".touch [data-key]").forEach((btn) => {
   const down = (e) => {
     e.preventDefault();
     e.stopPropagation();
+    if (gated) return;
     btn.setPointerCapture?.(e.pointerId);
     btn.classList.add("on");
     initAudio();
@@ -961,6 +1146,7 @@ document.querySelectorAll(".touch [data-key]").forEach((btn) => {
 document.getElementById("touch-pause")?.addEventListener("pointerdown", (e) => {
   e.preventDefault();
   e.stopPropagation();
+  if (gated) return;
   initAudio();
   togglePlayPause();
 });
@@ -1019,20 +1205,25 @@ const filmBar = document.querySelector(".film");
 const filmPause = document.getElementById("film-pause");
 
 function syncFilm() {
-  if (!filmBar) return;
   const opening = state === "opening";
-  const wasHidden = filmBar.hidden;
-  filmBar.hidden = !opening;
-  document.body.classList.toggle("is-opening", opening);
+  const playing = state === "play" || state === "caught";
+  const wasHidden = filmBar?.hidden;
+  // no celular a história avança no toque — esconde a barra do film
+  if (filmBar) filmBar.hidden = !opening || gated || isTouchDevice();
+  document.body.classList.toggle("is-opening", opening && !gated);
+  document.body.classList.toggle("is-playing", playing && !gated);
   document.body.classList.toggle("is-touch", matchMedia("(hover: none) and (pointer: coarse)").matches);
-  if (!filmPause) return;
+  if (!filmPause) {
+    if (filmBar && wasHidden !== filmBar.hidden) fitIntegerScale();
+    return;
+  }
   const pauseIco = filmPause.querySelector(".film-ico");
   const pauseTxt = filmPause.querySelector(".film-txt");
   if (pauseIco) pauseIco.textContent = openPlaying ? "❚❚" : "▶";
   if (pauseTxt) pauseTxt.textContent = openPlaying ? "Pausar" : "Continuar";
   filmPause.setAttribute("aria-label", openPlaying ? "Pausar" : "Continuar");
   filmPause.setAttribute("aria-pressed", String(!openPlaying));
-  if (wasHidden !== filmBar.hidden) fitIntegerScale();
+  if (filmBar && wasHidden !== filmBar.hidden) fitIntegerScale();
 }
 
 function bindFilm(btn, fn) {
@@ -1040,6 +1231,7 @@ function bindFilm(btn, fn) {
     initAudio();
     e.preventDefault();
     e.stopPropagation();
+    if (gated || isOrientFreeze()) return;
     fn();
     syncFilm();
   });
@@ -1051,10 +1243,48 @@ bindFilm(document.getElementById("film-restart"), restartOpening);
 bindFilm(filmPause, () => {
   openPlaying = !openPlaying;
 });
+
+document.getElementById("play-gate-btn")?.addEventListener("pointerdown", (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  enterPlay();
+});
+
+function onFullscreenChange() {
+  syncOrientHint();
+  fitIntegerScale();
+  setTimeout(() => {
+    fitIntegerScale();
+    syncOrientHint();
+  }, 120);
+}
+document.addEventListener("fullscreenchange", onFullscreenChange);
+document.addEventListener("webkitfullscreenchange", onFullscreenChange);
+
+addEventListener("orientationchange", () => {
+  setTimeout(() => {
+    syncOrientHint();
+    fitIntegerScale();
+  }, 80);
+});
+addEventListener("resize", syncOrientHint);
+visualViewport?.addEventListener("resize", syncOrientHint);
+matchMedia("(orientation: portrait)").addEventListener("change", syncOrientHint);
+
+syncImmersive();
 syncFilm();
+syncOrientHint();
 fitIntegerScale();
 
-addEventListener("pointerdown", () => {
+addEventListener("pointerdown", (e) => {
+  if (gated) {
+    if (e.target?.closest?.("#play-gate-btn, .gear, .settings")) return;
+    return;
+  }
+  if (isOrientFreeze()) {
+    if (e.target?.closest?.(".gear, .settings")) return;
+    return;
+  }
   initAudio();
   if (settingsOpen) {
     closeSettings();
@@ -1147,6 +1377,18 @@ function updateEnergy(dt) {
     p.discharging = true;
   }
   p.tired = p.energy <= 0;
+  // parado ou andando: sem barra nem bateria por uns segundos → checkpoint
+  if (dryHero()) {
+    if (emptyT <= 0) say("Tô sem energia…", null, 2.2);
+    emptyT += dt;
+    if (emptyT >= CFG.EMPTY_RESTART) {
+      emptyT = 0;
+      sfx("hurt");
+      catchHero("Sem energia! Volta e tenta de novo.");
+    }
+  } else {
+    emptyT = 0;
+  }
 }
 
 function catchHero(text) {
@@ -1193,6 +1435,7 @@ function wolfHit(w) {
 
 function update(dt) {
   if (settingsOpen) return;
+  if (isOrientFreeze()) return;
   if (playPaused && (state === "play" || state === "caught")) {
     legT += dt;
     return;
@@ -1220,8 +1463,16 @@ function update(dt) {
   }
   if (state === "opening") {
     if (openPlaying) {
-      openT += dt;
-      if (openT >= openingFrame(openIdx).dur) nextOpening();
+      // celular: história mais lenta e sem auto-avançar — só no toque
+      const touch = isTouchDevice();
+      openT += dt * (touch ? 0.72 : 1);
+      const frame = openingFrame(openIdx);
+      if (touch) {
+        const cap = Math.max(frame.typeEnd + 0.2, frame.dur - 0.45);
+        if (openT > cap) openT = cap;
+      } else if (openT >= frame.dur) {
+        nextOpening();
+      }
     }
     return;
   }
@@ -1245,6 +1496,7 @@ function update(dt) {
   }
 
   updateEnergy(dt);
+  if (state === "caught") return;
 
   const step = dt * FRAME; // 1.0 ≈ um frame a 60fps
   const L = keys.arrowleft || keys.a;
@@ -1793,27 +2045,36 @@ function drawSky() {
   fill(0, GROUND_Y, VW, VH - GROUND_Y, near);
 }
 
+function drawGroundTile(x) {
+  const sx = x * T - cam;
+  // grama no topo; terra contínua até embaixo (sem emenda de tile)
+  drawSprite(ctx, SPR.grass.f1, x * T, GROUND_Y, cam);
+  fill(sx, GROUND_Y + 4, T, VH - (GROUND_Y + 4), PAL.D);
+  for (let row = 0; GROUND_Y + 4 + row < VH; row++) {
+    const pattern = SPR.grass.dirt[row % SPR.grass.dirt.length];
+    for (let col = 0; col < T; col++) {
+      const hex = PAL[pattern[col % pattern.length]];
+      if (!hex || hex === PAL.D) continue;
+      fill(sx + col, GROUND_Y + 4 + row, 1, 1, hex);
+    }
+  }
+}
+
 function drawGround() {
+  const phaseMinX = phase === 2 ? PHASE2_START : 0;
   const x0 = Math.floor(cam / T) - 1;
   const x1 = Math.floor((cam + VW) / T) + 1;
   for (let x = x0; x <= x1; x++) {
-    if (x < 0 || x >= MAP_W) continue;
-    const sx = x * T - cam;
+    if (x >= MAP_W) continue;
+    // padding da câmera no celular (cam < início da fase): chão contínuo, sem “corte”
+    if (x < phaseMinX) {
+      drawGroundTile(x);
+      continue;
+    }
+    if (x < 0) continue;
 
     // buraco = só não desenha chão (fundo da fase aparece)
-    if (solid[GROUND][x]) {
-      // grama no topo; terra contínua até embaixo (sem emenda de tile)
-      drawSprite(ctx, SPR.grass.f1, x * T, GROUND_Y, cam);
-      fill(sx, GROUND_Y + 4, T, VH - (GROUND_Y + 4), PAL.D);
-      for (let row = 0; GROUND_Y + 4 + row < VH; row++) {
-        const pattern = SPR.grass.dirt[row % SPR.grass.dirt.length];
-        for (let col = 0; col < T; col++) {
-          const hex = PAL[pattern[col % pattern.length]];
-          if (!hex || hex === PAL.D) continue;
-          fill(sx + col, GROUND_Y + 4 + row, 1, 1, hex);
-        }
-      }
-    }
+    if (solid[GROUND][x]) drawGroundTile(x);
 
     for (let y = 0; y < GROUND; y++) {
       if (solid[y][x] === 2) {

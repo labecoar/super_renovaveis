@@ -389,9 +389,13 @@ function textbox(text, shown, done, t) {
     });
   });
   if (done && Math.floor(t * 2.5) % 2 === 0) {
-    R(304, 169, 5, 1, PAL.Y);
-    R(305, 170, 3, 1, PAL.Y);
-    R(306, 171, 1, 1, PAL.Y);
+    const touch = typeof document !== "undefined" && document.body.classList.contains("is-touch");
+    if (touch) txt("Toque", 304, 166, 16, PAL.Y, "right", PAL.K);
+    else {
+      R(304, 169, 5, 1, PAL.Y);
+      R(305, 170, 3, 1, PAL.Y);
+      R(306, 171, 1, 1, PAL.Y);
+    }
   }
 }
 
@@ -708,7 +712,9 @@ export function drawOpening(context, index, t, skipType, holdTitle) {
   s.draw(t);
   ctx.restore();
   if (s.text) {
-    const shown = skipType ? s.chars : Math.floor(clamp((t - 0.5) * 30, 0, s.chars));
+    const touch = typeof document !== "undefined" && document.body.classList.contains("is-touch");
+    const cps = touch ? 16 : 30; // celular: digita mais devagar pra dar tempo de ler
+    const shown = skipType ? s.chars : Math.floor(clamp((t - 0.5) * cps, 0, s.chars));
     textbox(s.text, shown, shown >= s.chars, t);
   }
   const fi = clamp(1 - t / 0.35);

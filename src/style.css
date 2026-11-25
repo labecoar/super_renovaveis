@@ -30,6 +30,7 @@ body {
   height: 100%;
   height: 100dvh;
   margin: 0;
+  overscroll-behavior: none;
 }
 
 body {
@@ -47,6 +48,34 @@ body {
   font-family: "Pixelify Sans", ui-monospace, monospace;
   background: linear-gradient(180deg, var(--bg-top) 0%, var(--bg-bot) 100%);
   overflow: hidden;
+  touch-action: manipulation;
+}
+
+html:fullscreen,
+html:-webkit-full-screen {
+  background: linear-gradient(180deg, var(--bg-top) 0%, var(--bg-bot) 100%);
+}
+
+html:fullscreen body,
+html:-webkit-full-screen body {
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  padding:
+    max(4px, env(safe-area-inset-top, 0))
+    max(4px, env(safe-area-inset-right, 0))
+    max(4px, env(safe-area-inset-bottom, 0))
+    max(4px, env(safe-area-inset-left, 0));
+  overscroll-behavior: none;
+  touch-action: none;
+}
+
+html:fullscreen .stage,
+html:-webkit-full-screen .stage {
+  width: 100%;
+  max-width: 100%;
+  height: 100%;
+  justify-content: center;
 }
 
 .stage {
@@ -60,6 +89,8 @@ body {
 }
 
 .topbar {
+  position: relative;
+  z-index: 9;
   display: grid;
   grid-template-columns: 44px 1fr 44px;
   align-items: center;
@@ -98,7 +129,7 @@ body {
   position: absolute;
   top: 52px;
   right: 0;
-  z-index: 5;
+  z-index: 10;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -209,6 +240,7 @@ body {
 }
 
 .bezel {
+  position: relative;
   width: fit-content;
   max-width: 100%;
   padding: 10px;
@@ -217,6 +249,132 @@ body {
     0 0 0 2px var(--line),
     8px 8px 0 0 var(--line);
   overflow: hidden;
+}
+
+.play-gate {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px;
+  background: rgba(16, 21, 42, 0.28);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.play-gate[hidden] {
+  display: none !important;
+}
+
+body.is-gated .film,
+body.is-gated .touch,
+body.is-gated .hint {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.play-gate-btn {
+  min-width: 9.5rem;
+  padding: 14px 28px;
+  font: inherit;
+  font-size: clamp(1.35rem, 4.5vw, 1.85rem);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #1c2240;
+  background: #ffcc3d;
+  border: 4px solid var(--bezel);
+  box-shadow: 4px 4px 0 0 var(--line);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.play-gate-btn:active {
+  transform: translate(3px, 3px);
+  box-shadow: 1px 1px 0 0 var(--line);
+}
+
+.orient-hint {
+  position: fixed;
+  inset: 0;
+  z-index: 7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: max(16px, env(safe-area-inset-top, 0)) max(16px, env(safe-area-inset-right, 0))
+    max(16px, env(safe-area-inset-bottom, 0)) max(16px, env(safe-area-inset-left, 0));
+  pointer-events: auto;
+  background: rgba(16, 21, 42, 0.5);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.orient-hint[hidden] {
+  display: none !important;
+}
+
+body.is-orient-freeze .film,
+body.is-orient-freeze .touch,
+body.is-orient-freeze .hint {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.orient-hint-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 22px 26px;
+  color: #1c2240;
+  background: #ffcc3d;
+  border: 4px solid var(--bezel);
+  box-shadow: 4px 4px 0 0 var(--line);
+}
+
+.orient-hint-phone {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  color: #1c2240;
+  animation: orient-phone-tilt 1.7s ease-in-out infinite;
+}
+
+.orient-hint-phone svg {
+  display: block;
+  overflow: visible;
+}
+
+.orient-hint-card p {
+  margin: 0;
+  font-size: clamp(1.05rem, 4.2vw, 1.35rem);
+  font-weight: 700;
+  text-align: center;
+}
+
+@keyframes orient-phone-tilt {
+  0%,
+  15% {
+    transform: rotate(0deg);
+  }
+  45%,
+  60% {
+    transform: rotate(90deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orient-hint-phone {
+    animation: none;
+  }
 }
 
 canvas {
@@ -282,14 +440,33 @@ canvas {
   box-shadow: 1px 1px 0 0 var(--line);
 }
 
+/* iframe do site: chrome mínima pra não cortar */
+body.is-embed .brand,
+body.is-embed .hint {
+  display: none;
+}
+
+body.is-embed {
+  padding: 2px;
+}
+
+body.is-embed .stage {
+  gap: 4px;
+}
+
+body.is-embed .bezel {
+  padding: 2px;
+  box-shadow: 0 0 0 1px var(--line);
+}
+
 @media (hover: none) and (pointer: coarse) {
+  /* d-pad / pulo só na fase (play) — some no mapa, intro, opening */
   .touch {
-    display: flex;
+    display: none;
   }
 
-  /* na abertura só os botões do filme; toque some pra não empilhar */
-  body.is-opening .touch {
-    display: none;
+  body.is-playing .touch {
+    display: flex;
   }
 
   .hint {
@@ -297,29 +474,29 @@ canvas {
   }
 
   .stage {
-    gap: 8px;
+    gap: 6px;
   }
 
   .bezel {
-    padding: 6px;
+    padding: 4px;
     box-shadow:
       0 0 0 2px var(--line),
-      4px 4px 0 0 var(--line);
+      3px 3px 0 0 var(--line);
   }
 
   .film {
     flex-wrap: nowrap;
-    gap: 8px;
+    gap: 6px;
     width: auto;
     max-width: 100%;
   }
 
   .film-btn {
     flex: 0 0 auto;
-    min-width: 48px;
-    min-height: 48px;
-    padding: 10px 12px;
-    font-size: 1.15rem;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 8px 10px;
+    font-size: 1.05rem;
   }
 
   .film-btn .film-txt {
@@ -329,18 +506,18 @@ canvas {
   .touch {
     width: 100%;
     max-width: 420px;
-    gap: 12px;
+    gap: 10px;
   }
 
   .touch button {
-    width: 56px;
-    height: 56px;
-    font-size: 1.2rem;
+    width: 52px;
+    height: 52px;
+    font-size: 1.15rem;
   }
 
   .touch button.jump {
-    width: 88px;
-    font-size: 0.9rem;
+    width: 84px;
+    font-size: 0.85rem;
   }
 
   canvas {
@@ -348,85 +525,171 @@ canvas {
   }
 }
 
-/* celular deitado: controles pequenos embaixo, sem cobrir o canvas */
-@media (hover: none) and (pointer: coarse) and (max-height: 500px) {
-  body {
-    padding:
-      max(4px, env(safe-area-inset-top, 0))
-      max(4px, env(safe-area-inset-right, 0))
-      max(4px, env(safe-area-inset-bottom, 0))
-      max(4px, env(safe-area-inset-left, 0));
-  }
+/* celular após Jogar: canvas max + controles overlay (estilo Mario) */
+body.is-immersive {
+  padding: 0;
+  background: #0a0e18;
+  touch-action: none;
+}
 
-  .brand {
-    display: none;
-  }
+body.is-immersive .brand,
+body.is-immersive .hint {
+  display: none !important;
+}
 
-  .topbar {
-    position: absolute;
-    top: 0;
-    right: 0;
-    z-index: 6;
-    width: auto;
-    padding: 4px;
-  }
+body.is-immersive .stage {
+  gap: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  justify-content: center;
+  overflow: hidden;
+}
 
-  .gear {
-    grid-column: 1;
-    width: 32px;
-    height: 32px;
-  }
+body.is-immersive .bezel {
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  max-width: none;
+  overflow: visible;
+}
 
-  .stage {
-    gap: 4px;
-    width: 100%;
-    justify-content: center;
-  }
+body.is-immersive .topbar {
+  position: fixed;
+  top: max(6px, env(safe-area-inset-top, 0));
+  right: max(6px, env(safe-area-inset-right, 0));
+  z-index: 9;
+  width: auto;
+  padding: 0;
+  pointer-events: none;
+}
 
-  .bezel {
-    padding: 3px;
-  }
+body.is-immersive .topbar .gear {
+  pointer-events: auto;
+  grid-column: 1;
+  width: 36px;
+  height: 36px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.22);
+  border: 2px solid rgba(255, 255, 255, 0.55);
+  box-shadow: none;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
 
-  .film {
-    position: static;
-    gap: 4px;
-    transform: none;
-  }
+body.is-immersive .settings {
+  top: 44px;
+  right: 0;
+  pointer-events: auto;
+}
 
-  .film-btn {
-    min-width: 36px;
-    min-height: 36px;
-    padding: 4px 8px;
-    font-size: 0.85rem;
-    box-shadow: 2px 2px 0 0 var(--line);
-  }
+body.is-immersive .film {
+  position: fixed;
+  left: 50%;
+  bottom: max(10px, env(safe-area-inset-bottom, 0));
+  z-index: 6;
+  width: auto;
+  max-width: calc(100% - 24px);
+  gap: 8px;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
 
-  .touch {
-    position: static;
-    width: min(100%, 360px);
-    max-width: none;
-    gap: 8px;
-    padding: 0;
-    pointer-events: auto;
-  }
+body.is-immersive .film-btn {
+  pointer-events: auto;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 8px 12px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.22);
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  box-shadow: none;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
 
-  .touch button {
-    width: 40px;
-    height: 40px;
-    font-size: 1rem;
-    box-shadow: 2px 2px 0 0 var(--line);
-    background: var(--bg-bot);
-  }
+body.is-immersive .film-btn.is-pause {
+  color: #1c2240;
+  background: rgba(255, 204, 61, 0.9);
+  border-color: rgba(255, 204, 61, 0.95);
+}
 
-  .touch button.jump {
-    width: 64px;
-    font-size: 0.75rem;
-    color: #1c2240;
-  }
+body.is-immersive .touch {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  display: none;
+  width: auto;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  pointer-events: none;
+}
 
-  .touch button.jump::before {
-    content: none;
-  }
+body.is-immersive.is-playing .touch {
+  display: block;
+}
+
+body.is-immersive .touch .dpad {
+  position: absolute;
+  left: max(10px, env(safe-area-inset-left, 0));
+  bottom: max(10px, env(safe-area-inset-bottom, 0));
+  display: flex;
+  gap: 10px;
+  pointer-events: none;
+}
+
+body.is-immersive .touch button {
+  pointer-events: auto;
+  width: 52px;
+  height: 52px;
+  color: rgba(255, 255, 255, 0.95);
+  font-size: 1.2rem;
+  background: rgba(255, 255, 255, 0.14);
+  border: 2px solid rgba(255, 255, 255, 0.38);
+  border-radius: 50%;
+  box-shadow: none;
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
+body.is-immersive .touch button.on {
+  transform: scale(0.94);
+  background: rgba(255, 255, 255, 0.32);
+  box-shadow: none;
+}
+
+body.is-immersive .touch button.pause {
+  position: absolute;
+  left: max(10px, env(safe-area-inset-left, 0));
+  top: max(6px, env(safe-area-inset-top, 0));
+  width: 36px;
+  height: 36px;
+  font-size: 0.85rem;
+}
+
+body.is-immersive .touch button.jump {
+  position: absolute;
+  right: max(14px, env(safe-area-inset-right, 0));
+  bottom: max(12px, env(safe-area-inset-bottom, 0));
+  width: 68px;
+  height: 68px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #1c2240;
+  background: rgba(255, 204, 61, 0.72);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+body.is-immersive .touch button.jump::before {
+  content: none;
+}
+
+html:fullscreen body.is-immersive,
+html:-webkit-full-screen body.is-immersive {
+  padding: 0;
+  background: #0a0e18;
 }
 
 .hint {
