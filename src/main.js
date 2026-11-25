@@ -249,10 +249,12 @@ function fitIntegerScale() {
   const baseW = VW * SCALE;
   const baseH = VH * SCALE;
   const ratio = Math.min(availW / baseW, availH / baseH);
-  // PC: ~80%. Celular/iframe: usa 100% do espaço disponível (adaptive).
-  const fit = touch || embed
+  // PC: ~65% (não ocupar a tela toda). Celular/iframe: cabe no espaço (adaptive).
+  const fit = touch
     ? Math.max(0.15, Math.min(ratio, 2.5))
-    : Math.max(0.3, Math.min(ratio, 1), ratio * 0.8);
+    : embed
+      ? Math.max(0.15, Math.min(ratio * 0.92, 2.2))
+      : Math.max(0.3, Math.min(ratio, 1), ratio * 0.65);
 
   const k = Math.max(1, Math.ceil(fit * dpr));
   let cssW = Math.floor(baseW * fit);
@@ -687,14 +689,8 @@ async function lockLandscape() {
 }
 
 function syncImmersive() {
-  // touch ou embed do site: canvas max + controles em overlay (cabe no espaço)
-  let embed = false;
-  try {
-    embed = window.self !== window.top;
-  } catch {
-    embed = true;
-  }
-  const on = !gated && (isTouchDevice() || embed);
+  // só celular/tablet — no PC nunca mostra d-pad/PULAR
+  const on = !gated && isTouchDevice();
   document.body.classList.toggle("is-immersive", on);
 }
 

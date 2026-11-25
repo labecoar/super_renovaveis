@@ -639,7 +639,7 @@ body.is-immersive .touch {
   position: fixed;
   inset: 0;
   z-index: 5;
-  display: none;
+  display: none !important;
   width: auto;
   max-width: none;
   margin: 0;
@@ -647,8 +647,11 @@ body.is-immersive .touch {
   pointer-events: none;
 }
 
-body.is-immersive.is-playing .touch {
-  display: block;
+/* d-pad / PULAR só em ponteiro grosso (celular), nunca no mouse/PC */
+@media (hover: none) and (pointer: coarse) {
+  body.is-immersive.is-playing .touch {
+    display: block !important;
+  }
 }
 
 body.is-immersive .touch .dpad {
