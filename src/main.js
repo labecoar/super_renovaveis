@@ -175,6 +175,32 @@ function chromeH(el) {
   return el.getBoundingClientRect().height;
 }
 
+/** Celular: cola o stage na área visível — giro/barra do Safari não desloca o quadro. */
+function pinMobileFrame() {
+  const stage = document.querySelector(".stage");
+  if (!stage) return;
+  const touch = matchMedia("(hover: none) and (pointer: coarse)").matches;
+  if (!touch) {
+    stage.style.position = "";
+    stage.style.left = "";
+    stage.style.top = "";
+    stage.style.width = "";
+    stage.style.height = "";
+    return;
+  }
+  const vv = window.visualViewport;
+  const left = vv?.offsetLeft || 0;
+  const top = vv?.offsetTop || 0;
+  const w = vv?.width || window.innerWidth;
+  const h = vv?.height || window.innerHeight;
+  stage.style.position = "fixed";
+  stage.style.left = `${left}px`;
+  stage.style.top = `${top}px`;
+  stage.style.width = `${w}px`;
+  stage.style.height = `${h}px`;
+  if (window.scrollX || window.scrollY) window.scrollTo(0, 0);
+}
+
 function syncEmbedClass() {
   let embed = false;
   try {
@@ -201,6 +227,7 @@ function viewportSize(embed) {
 }
 
 function fitIntegerScale() {
+  pinMobileFrame();
   const embed = syncEmbedClass();
   const dpr = Math.max(1, Math.round(window.devicePixelRatio) || 1);
   const touch = matchMedia("(hover: none) and (pointer: coarse)").matches;
@@ -323,6 +350,17 @@ fitIntegerScale();
 addEventListener("resize", fitIntegerScale);
 addEventListener("orientationchange", () => setTimeout(fitIntegerScale, 80));
 visualViewport?.addEventListener("resize", fitIntegerScale);
+visualViewport?.addEventListener("scroll", () => {
+  pinMobileFrame();
+  fitIntegerScale();
+});
+document.addEventListener(
+  "touchmove",
+  (e) => {
+    if (matchMedia("(hover: none) and (pointer: coarse)").matches) e.preventDefault();
+  },
+  { passive: false },
+);
 // site (Wix) muda o iframe sem sempre disparar resize na window
 if (typeof ResizeObserver !== "undefined") {
   const ro = new ResizeObserver(() => fitIntegerScale());
